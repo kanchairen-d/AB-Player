@@ -185,7 +185,7 @@ a:hover{text-decoration:underline}
 }
 
 /* Sub-item checkbox label */
-.sub-item-label{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:12px;cursor:pointer}
+.sub-item-label{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;cursor:pointer}
 .sub-item-label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Subscription generated result links */
@@ -202,7 +202,7 @@ a:hover{text-decoration:underline}
 /* Sub-items scroll area */
 .sub-items-scroll{max-height:400px;overflow-y:auto;padding-right:4px}
 .sub-group{margin-bottom:8px}
-.sub-group-title{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)}
+.sub-group-title{font-size:14px;font-weight:700;margin-bottom:6px;color:var(--text);padding:4px 0}
 .sub-group-count{color:var(--text-muted);font-weight:400}
 </style>
 </head>
@@ -354,19 +354,15 @@ a:hover{text-decoration:underline}
     <div class="card">
       <div class="card-h">📝 新建订阅</div>
 
-      <!-- 分类管理 -->
-      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+      <!-- 分类管理 + 订阅名称 + 生成 → 合并一行 -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
         <input id="newCategoryName" class="f-input" style="width:160px" placeholder="新建分类名，如：123456">
         <button class="btn btn-sm" onclick="addCategory()">➕ 添加分类</button>
         <button class="btn btn-sm btn-danger" id="delCategoryBtn" onclick="delCategory()" style="display:none">🗑 删除分类</button>
-      </div>
-      <div id="categoryTagBar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
-
-      <!-- 订阅名称 + 生成按钮 -->
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <input id="subName" class="f-input" style="flex:1" placeholder="订阅名称，如：123456">
+        <input id="subName" class="f-input" style="flex:1;min-width:140px" placeholder="订阅名称，如：123456">
         <button class="btn btn-primary" onclick="generateSub()">生成订阅</button>
       </div>
+      <div id="categoryTagBar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
       <div id="subGenResult"></div>
 
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">勾选项目，已分类的按分类分组生成，未分类的各自独立</div>
