@@ -207,7 +207,18 @@ def register(app):
             ups = cfg.setdefault("bili_ups", [])
             for u in ups:
                 if u.get("mid") == uid:
-                    return JSONResponse({"error": "已存在"})
+                    # 已存在时更新名称
+                    if up_name:
+                        u["name"] = up_name
+                    else:
+                        try:
+                            info = await up_info(int(uid))
+                            if info and info.get("name"):
+                                u["name"] = info["name"]
+                        except Exception:
+                            pass
+                    save_config(cfg)
+                    return JSONResponse({"ok": True, "name": u["name"], "count": len(ups)})
             # 没提供名字时从 B站 API 查
             if not up_name:
                 try:
@@ -415,7 +426,18 @@ def register(app):
             ups = cfg.setdefault("acfun_ups", [])
             for u in ups:
                 if u.get("mid") == uid:
-                    return JSONResponse({"error": "已存在"})
+                    # 已存在时更新名称
+                    if acfun_up_name:
+                        u["name"] = acfun_up_name
+                    else:
+                        try:
+                            info = await fetch_user_info(str(uid))
+                            if info and info.get("name"):
+                                u["name"] = info["name"]
+                        except Exception:
+                            pass
+                    save_config(cfg)
+                    return JSONResponse({"ok": True, "name": u["name"], "count": len(ups)})
             # 没提供名字时从 A站 API 查
             if not acfun_up_name:
                 try:
