@@ -185,7 +185,7 @@ a:hover{text-decoration:underline}
 }
 
 /* Sub-item checkbox label */
-.sub-item-label{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:12px;cursor:pointer}
+.sub-item-label{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;cursor:pointer}
 .sub-item-label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* Subscription generated result links */
@@ -202,7 +202,7 @@ a:hover{text-decoration:underline}
 /* Sub-items scroll area */
 .sub-items-scroll{max-height:400px;overflow-y:auto;padding-right:4px}
 .sub-group{margin-bottom:8px}
-.sub-group-title{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)}
+.sub-group-title{font-size:14px;font-weight:700;margin-bottom:6px;color:var(--text);padding:4px 0}
 .sub-group-count{color:var(--text-muted);font-weight:400}
 </style>
 </head>
@@ -345,28 +345,23 @@ a:hover{text-decoration:underline}
   <section class="page" id="pg-sub">
     <h2 class="pg-title">📋 订阅链接</h2>
     <div class="stats cols-3" id="subStats">
-      <div class="stat"><span class="stat-num" id="subStatVod">0</span><span class="stat-lbl">点播订阅</span></div>
-      <div class="stat"><span class="stat-num" id="subStatLive">0</span><span class="stat-lbl">直播订阅</span></div>
-      <div class="stat"><span class="stat-num" id="subStatTotal">0</span><span class="stat-lbl">总订阅数</span></div>
+      <div class="stat"><span class="stat-num" id="subStatCat">0</span><span class="stat-lbl">分类项目</span></div>
+      <div class="stat"><span class="stat-num" id="subStatUncat">0</span><span class="stat-lbl">未分类项目</span></div>
+      <div class="stat"><span class="stat-num" id="subStatTotal">0</span><span class="stat-lbl">总订阅</span></div>
     </div>
 
     <!-- 新建订阅 -->
     <div class="card">
       <div class="card-h">📝 新建订阅</div>
 
-      <!-- 分类管理 -->
-      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+      <!-- 分类管理 + 订阅名称 + 生成 → 合并一行 -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
         <input id="newCategoryName" class="f-input" style="width:160px" placeholder="新建分类名，如：123456">
-        <button class="btn btn-sm" onclick="addCategory()">➕ 添加分类</button>
-        <button class="btn btn-sm btn-danger" id="delCategoryBtn" onclick="delCategory()" style="display:none">🗑 删除分类</button>
-      </div>
-      <div id="categoryTagBar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
-
-      <!-- 订阅名称 + 生成按钮 -->
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <input id="subName" class="f-input" style="flex:1" placeholder="订阅名称，如：123456">
+        <button class="btn btn-primary btn-sm" onclick="addCategory()">➕ 添加分类</button>
+        <input id="subName" class="f-input" style="flex:1;min-width:140px" placeholder="订阅名称，如：123456">
         <button class="btn btn-primary" onclick="generateSub()">生成订阅</button>
       </div>
+      <div id="categoryTagBar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
       <div id="subGenResult"></div>
 
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">勾选项目，已分类的按分类分组生成，未分类的各自独立</div>
@@ -651,14 +646,27 @@ function renderStats(cfg) {
   document.getElementById('acfunUpTag').textContent = acfunUps.length;
   document.getElementById('acfunVideoTag').textContent = acfunVideos.length;
 
-  var vodCount = 0, liveCount = 0;
-  subs.forEach(function(s){
-    var cnt = (s.items || []).length;
-    if ((s.type || 'vod') === 'live') liveCount += cnt;
-    else vodCount += cnt;
+  var catCount = 0, uncatCount = 0;
+  var cats = cfg.categories || [];
+  var catItemMap = {};
+  cats.forEach(function(c){ (c.items || []).forEach(function(id){ catItemMap[id] = true; }); });
+
+  // 收集所有订阅可用的项目（与 renderSubItems 一致）
+  var allItems = [];
+  (biliSeries || []).forEach(function(s){ allItems.push('series_' + (s.series_id || s.id)); });
+  (biliUps || []).forEach(function(u){ allItems.push('up_' + u.mid); });
+  (biliVideos || []).forEach(function(v){ allItems.push('video_' + v.id); });
+  (biliRooms || []).forEach(function(r){ allItems.push('room_' + r.room_id); });
+  (acfunAlbums || []).forEach(function(a){ allItems.push('acfun_album_' + a.id); });
+  (acfunUps || []).forEach(function(u){ allItems.push('acfun_up_' + (u.uid || u.mid)); });
+  (acfunVideos || []).forEach(function(v){ allItems.push('acfun_video_' + v.id); });
+
+  allItems.forEach(function(id){
+    if (catItemMap[id]) catCount++;
+    else uncatCount++;
   });
-  document.getElementById('subStatVod').textContent = vodCount;
-  document.getElementById('subStatLive').textContent = liveCount;
+  document.getElementById('subStatCat').textContent = catCount;
+  document.getElementById('subStatUncat').textContent = uncatCount;
   document.getElementById('subStatTotal').textContent = subs.length;
 }
 
@@ -1329,8 +1337,6 @@ function renderCategoryTags(cats) {
 function selectCategory(el) {
   document.querySelectorAll('.cat-tag').forEach(function(t){ t.classList.remove('active'); });
   if (el) el.classList.add('active');
-  var delBtn = document.getElementById('delCategoryBtn');
-  delBtn.style.display = el ? 'inline-block' : 'none';
 }
 
 function selectCategoryItems(cn) {

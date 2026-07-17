@@ -868,12 +868,9 @@ def _filter_config(cfg: dict, ids: str = "", sub: str = "") -> dict:
 
 def _build_category_list(cfg: dict) -> list:
     classes = []
-    # 如果有订阅使用了 groups 格式（有实际分类名），则不显示单个 item 分类
-    _has_grouped_subs = any(
-        any(g.get("class_name") for g in (s.get("groups") or []))
-        for s in cfg.get("subscriptions", [])
-    )
-    if not _has_grouped_subs:
+    # 有订阅时不显示单个 item 分类（避免重复）
+    _has_subs = bool(cfg.get("subscriptions"))
+    if not _has_subs:
         for s in cfg.get("series", []) or cfg.get("bili_series", []):
             sid = s.get("id") or s.get("series_id", "")
             name = s.get("name", f"合集 #{sid}")
