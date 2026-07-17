@@ -470,35 +470,34 @@ async def _extract_best_m3u8(play_data: dict, headers: dict) -> Optional[str]:
 
     # 检查是否是 m3u8 内容还是 URL
     if best_url.startswith("http"):
-        # 尝试抓取 M3U8 并改写分片地址
-        import httpx
+        # 尝试抓取 M3U8 并改写分片地址（避免在容器内创建新 httpx 客户端）
         try:
-            async with httpx.AsyncClient(timeout=15) as cli:
-                r = await cli.get(best_url, headers=headers)
-                if r.status_code == 200 and r.text.strip().startswith("#EXTM3U"):
-                    from urllib.parse import quote, urlparse
-                    cdn_base = best_url.rsplit("/", 1)[0] + "/"
-                    # 保留 best_url 上的认证参数（pkey, safety_id 等）
-                    parsed = urlparse(best_url)
-                    auth_query = parsed.query
-                    lines = r.text.split("\n")
-                    rewritten = []
-                    for line in lines:
-                        tl = line.strip()
-                        if tl and not tl.startswith("#") and (".ts" in tl.lower() or ".m3u8" in tl.lower()):
-                            if tl.startswith("http"):
-                                # 已经是完整 URL（通常已有 auth 参数）
-                                full_ts_url = tl
-                            else:
-                                # 只有文件名，需要拼 CDN base + auth
-                                full_ts_url = cdn_base + tl
-                                if auth_query:
-                                    sep = "&" if "?" in full_ts_url else "?"
-                                    full_ts_url += sep + auth_query
-                            rewritten.append(full_ts_url)
+            import asyncio, urllib.request
+            r = await asyncio.to_thread(
+                urllib.request.urlopen,
+                urllib.request.Request(best_url, headers=dict(headers)),
+                timeout=10
+            )
+            m3u8_text = r.read().decode("utf-8")
+            if m3u8_text.strip().startswith("#EXTM3U"):
+                from urllib.parse import quote, urlparse
+                cdn_base = best_url.rsplit("/", 1)[0] + "/"
+                parsed = urlparse(best_url)
+                auth_query = parsed.query
+                lines = m3u8_text.split("\n")
+                rewritten = []
+                for line in lines:
+                    tl = line.strip()
+                    if tl and not tl.startswith("#") and (".ts" in tl.lower() or ".m3u8" in tl.lower()):
+                        if tl.startswith("http"):
+                            full_ts_url = tl
                         else:
-                            rewritten.append(line)
-                    return "\n".join(rewritten)
+                            full_ts_url = cdn_base + tl
+                            # ts 分片已有自己的 pkey/safety_id，不要追加 auth_query，否则重复 pkey 导致 403
+                        rewritten.append(full_ts_url)
+                    else:
+                        rewritten.append(line)
+                return "\n".join(rewritten)
         except Exception:
             pass
         return best_url
@@ -600,6 +599,83 @@ async def _proxy_acfun_ts(ts_url: str, request: Request) -> Response:
 
 
 # ═══════════════════════════════════════════════════════════════
+# 中转代理：服务端合并 HLS 为连续 MPEG-TS 流
+# ═══════════════════════════════════════════════════════════════
+
+async def _play_acfun_stream(content_id: str, target_cid: str, request: Request):
+    """获取 A站视频 ts 分片，合并为连续流返回（解决反代问题）"""
+    import asyncio, urllib.request, json
+    from .config import load_config
+
+    key = f"apls:{content_id}:{target_cid}"
+    cached = cache_get(key, 86400)
+    if cached:
+        ts_urls = json.loads(cached)
+    else:
+        # 获取播放信息
+        url_or_m3u8 = await get_play_url(content_id, target_cid)
+        if not url_or_m3u8:
+            return PlainTextResponse("播放地址获取失败", status_code=502)
+
+        m3u8_content = url_or_m3u8
+        if url_or_m3u8.startswith("http"):
+            headers = _headers()
+            try:
+                r = await asyncio.to_thread(
+                    urllib.request.urlopen,
+                    urllib.request.Request(url_or_m3u8, headers=dict(headers)),
+                    timeout=10
+                )
+                m3u8_content = r.read().decode("utf-8")
+            except Exception as e:
+                return PlainTextResponse(f"获取 M3U8 失败: {e}", status_code=502)
+
+        # 从 M3U8 中提取 ts 分片 URL
+        ts_urls = []
+        for line in m3u8_content.split("\n"):
+            tl = line.strip()
+            if tl and not tl.startswith("#") and (".ts" in tl.lower()):
+                ts_urls.append(tl)
+
+        if not ts_urls:
+            return PlainTextResponse("未找到 TS 分片", status_code=502)
+
+        cache_set(key, json.dumps(ts_urls, ensure_ascii=False), 86400)
+
+    headers = _headers()
+    _cfg = load_config()
+    ac_cookie = _cfg.get("acfun_cookie", "")
+    if ac_cookie:
+        from urllib.parse import unquote
+        headers["Cookie"] = unquote(ac_cookie).strip().rstrip(";").strip()
+
+    async def _stream():
+        for ts_url in ts_urls:
+            try:
+                req = urllib.request.Request(ts_url, headers=dict(headers))
+                data = await asyncio.to_thread(
+                    urllib.request.urlopen, req, timeout=30
+                )
+                while True:
+                    chunk = data.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+            except Exception:
+                continue
+
+    resp_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=86400",
+    }
+    return StreamingResponse(
+        _stream(),
+        media_type="video/mp2t",
+        headers=resp_headers,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
 # 工具
 # ═══════════════════════════════════════════════════════════════
 
@@ -675,18 +751,8 @@ def register(app):
         # ─── 播放/单视频 ─────────────────────────
         if id:
             if play:
-                base_url = str(request.base_url).rstrip("/")
-                url = await get_play_url_proxy(id, base_url, cid or "")
-                if url:
-                    if url.startswith("#EXTM3U"):
-                        # 原始 M3U8（CDN URL），动态替换为代理 URL
-                        url = _proxy_prefix_m3u8(url, base_url)
-                        return Response(content=url, media_type="application/vnd.apple.mpegurl")
-                    if url.startswith("http"):
-                        # 是 URL 不是 M3U8 内容，可能被浏览器直接跳转
-                        # 用代理方式播放，确保 Referer 正确
-                        return await _proxy_acfun_m3u8(url, request)
-                return PlainTextResponse("播放地址获取失败", status_code=502)
+                # 中转代理：服务端内部拉取所有 ts 分片，合并为连续流返回
+                return await _play_acfun_stream(id, cid or "", request)
             info = await fetch_video_info(id)
             if info:
                 return _render_acfun_player(request, id, info, _parts)
