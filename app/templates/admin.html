@@ -357,8 +357,7 @@ a:hover{text-decoration:underline}
       <!-- 分类管理 + 订阅名称 + 生成 → 合并一行 -->
       <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
         <input id="newCategoryName" class="f-input" style="width:160px" placeholder="新建分类名，如：123456">
-        <button class="btn btn-sm" onclick="addCategory()">➕ 添加分类</button>
-        <button class="btn btn-sm btn-danger" id="delCategoryBtn" onclick="delCategory()" style="display:none">🗑 删除分类</button>
+        <button class="btn btn-primary btn-sm" onclick="addCategory()">➕ 添加分类</button>
         <input id="subName" class="f-input" style="flex:1;min-width:140px" placeholder="订阅名称，如：123456">
         <button class="btn btn-primary" onclick="generateSub()">生成订阅</button>
       </div>
@@ -1338,8 +1337,6 @@ function renderCategoryTags(cats) {
 function selectCategory(el) {
   document.querySelectorAll('.cat-tag').forEach(function(t){ t.classList.remove('active'); });
   if (el) el.classList.add('active');
-  var delBtn = document.getElementById('delCategoryBtn');
-  delBtn.style.display = el ? 'inline-block' : 'none';
 }
 
 function selectCategoryItems(cn) {
