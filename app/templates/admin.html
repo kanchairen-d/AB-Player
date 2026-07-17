@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AB Player 管理</title>
+<style>
+/* ============================================================
+   AB2 Admin — 毛玻璃风格
+   ============================================================ */
+
+:root, [data-theme="light"] {
+  --bg: #e8ecf0;
+  --glass: rgba(255,255,255,0.95);
+  --glass-bd: rgba(255,255,255,0.55);
+  --glass-shadow: 0 8px 32px rgba(31,35,40,0.12);
+  --glass-nav: rgba(255,255,255,0.96);
+  --glass-nav-bd: rgba(255,255,255,0.55);
+  --border: #d0d7de;
+  --border-l: rgba(208,215,222,0.3);
+  --text: #1f2328;
+  --text-muted: #57606a;
+  --text-dim: #8b949e;
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --green: #1a7f37;
+  --green-bg: rgba(26,127,55,0.12);
+  --red: #cf222e;
+  --red-bg: rgba(207,34,46,0.10);
+  --orange: #9a6700;
+  --orange-bg: rgba(154,103,0,0.12);
+  --radius: 10px;
+  --radius-sm: 7px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  --mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+[data-theme="dark"] {
+  --bg: #0d1117;
+  --glass: rgba(22,27,34,0.93);
+  --glass-bd: rgba(48,54,61,0.6);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  --glass-nav: rgba(22,27,34,0.95);
+  --glass-nav-bd: rgba(48,54,61,0.6);
+  --border: #30363d;
+  --border-l: rgba(48,54,61,0.3);
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --text-dim: #484f58;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --green: #3fb950;
+  --green-bg: rgba(63,185,80,0.15);
+  --red: #f85149;
+  --red-bg: rgba(248,81,73,0.10);
+  --orange: #d29922;
+  --orange-bg: rgba(210,153,34,0.12);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;font-family:var(--font);font-size:14px;line-height:1.5;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Scroll */
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(139,148,158,0.3);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(139,148,158,0.5)}
+
+/* ---- Top Bar (Glass) ---- */
+.top{display:none;align-items:center;justify-content:center;gap:12px;padding:16px 30px;position:sticky;top:0;z-index:100;background:var(--bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.top.show{display:flex}
+.top-logo{font-size:22px;font-weight:700;background:linear-gradient(135deg,#0969da,#1a7f37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.3px;user-select:none;white-space:nowrap}
+[data-theme="dark"] .top-logo{background:linear-gradient(135deg,#58a6ff,#3fb950);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.top-nav{display:flex;gap:3px;background:var(--glass-nav);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--glass-nav-bd);border-radius:var(--radius);padding:4px;box-shadow:var(--glass-shadow)}
+.top-nav a{padding:9px 22px;border-radius:calc(var(--radius-sm) - 2px);color:var(--text-muted);font-size:15px;cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.top-nav a:hover{background:rgba(0,0,0,.05);color:var(--text);text-decoration:none}
+[data-theme="dark"] .top-nav a:hover{background:rgba(255,255,255,.06)}
+.top-nav a.on{background:var(--glass);color:var(--text);font-weight:600;backdrop-filter:blur(8px);box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.top-right{display:flex;align-items:center;gap:12px;position:absolute;right:30px;top:20px}
+.ver-badge{font-size:11px;padding:2px 10px;border-radius:999px;background:var(--glass);color:var(--text-muted);border:1px solid var(--glass-nav-bd);backdrop-filter:blur(8px)}
+
+/* Theme switch */
+.tswitch{display:flex;align-items:center;cursor:pointer}
+.tswitch input{display:none}
+.ts-track{display:inline-block;width:36px;height:20px;border-radius:999px;background:rgba(208,215,222,0.5);position:relative;font-size:0;line-height:0;transition:background .2s}
+.ts-track::after{content:'🌙';position:absolute;top:1px;left:2px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;transition:left .2s;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.12)}
+.tswitch input:checked+.ts-track{background:rgba(48,54,61,0.6)}
+.tswitch input:checked+.ts-track::after{content:'☀️';left:18px;background:#555}
+
+/* ---- Main Card (Glass) ---- */
+.main-card{max-width:1120px;width:100%;margin:20px auto 40px;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-bd);border-radius:var(--radius);box-shadow:var(--glass-shadow);padding:28px 32px;min-height:300px;display:block!important}
+
+/* ---- Pages ---- */
+.page{display:none}
+.page.on{display:block;animation:fadeIn .15s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.pg-title{font-size:18px;font-weight:600;margin-bottom:18px;color:var(--text-muted);letter-spacing:-0.2px}
+
+/* ---- Stats Grid ---- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.stats.cols-3{grid-template-columns:repeat(3,1fr)}
+.stats.cols-2{grid-template-columns:repeat(2,1fr)}
+.stat{background:var(--glass-nav);border:1px solid var(--glass-nav-bd);border-radius:var(--radius-sm);padding:12px 14px;text-align:center;backdrop-filter:blur(8px);transition:transform .15s,box-shadow .15s;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.stat:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.06)}
+.stat-num{display:block;font-size:19px;font-weight:700;color:var(--text);white-space:nowrap}
+.stat-lbl{display:block;font-size:12px;color:var(--text-muted);margin-top:2px;white-space:nowrap}
+
+/* ---- Card ---- */
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--glass-nav);border:1px solid var(--glass-nav-bd);border-radius:var(--radius-sm);padding:16px;backdrop-filter:blur(8px);box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.card+.card{margin-top:14px}
+.row .card+.card{margin-top:0}
+.card-h{font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.tag{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--glass);color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;border:1px solid var(--glass-nav-bd)}
+
+/* ---- Info table ---- */
+.info{width:100%;border-collapse:collapse}
+.info td{padding:5px 0;font-size:14px}
+
+/* ---- Procs ---- */
+.proc-row{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;border-bottom:1px solid var(--border-l)}
+.proc-row:last-child{border-bottom:none}
+.proc-name{font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---- Buttons ---- */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border-radius:var(--radius-sm);border:1px solid var(--glass-nav-bd);background:var(--glass);color:var(--text);font-size:14px;cursor:pointer;transition:all .12s;font-family:var(--font);user-select:none;backdrop-filter:blur(8px)}
+.btn:hover{background:rgba(255,255,255,0.25);border-color:var(--text-muted)}
+[data-theme="dark"] .btn:hover{background:rgba(255,255,255,.08)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)!important}
+.btn-sm{padding:4px 10px;font-size:13px}
+.btn-danger{color:var(--red)}
+.btn-link{cursor:pointer}
+
+/* ---- Form Inputs ---- */
+.f-input{background:var(--bg);border:1px solid var(--glass-nav-bd);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;font-family:var(--font);outline:none;min-width:0}
+.f-input:focus{border-color:var(--accent)}
+
+/* ---- Loading / Empty ---- */
+.loading{text-align:center;padding:20px 0;color:var(--text-dim);font-size:13px}
+
+/* ---- URL Box ---- */
+.url-box{background:var(--glass-nav);border:1px solid var(--glass-nav-bd);border-radius:5px;padding:10px 14px;margin-bottom:8px;font-family:var(--mono);font-size:13px;color:var(--accent);cursor:pointer;transition:background .15s;word-break:break-all}
+.url-box:hover{background:var(--glass)}
+
+/* ---- Footer ---- */
+.dash-ft{display:flex;align-items:center;gap:16px;margin-top:20px;padding-top:14px;border-top:1px solid var(--border-l);justify-content:center}
+.dash-ft-link{color:var(--accent);text-decoration:none}
+.dash-ft-link:hover{color:var(--accent-hover)}
+.dash-ft-item{display:flex;align-items:center;gap:6px;font-size:14px;padding:6px 14px;border-radius:var(--radius-sm);cursor:pointer;transition:background .15s;position:relative;user-select:none}
+.dash-ft-item:hover{background:var(--glass-nav)}
+.mp-label{color:var(--text-muted)}
+.mp-popup{display:none;position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);background:var(--glass);border:1px solid var(--glass-bd);border-radius:var(--radius-sm);padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);backdrop-filter:blur(20px);z-index:999}
+.mp-popup img{max-width:200px;height:auto;display:block;border-radius:4px}
+#mpWrap:hover .mp-popup{display:block}
+/* ---- QR Code ---- */
+#qr-area,#acfun-qr-area{text-align:center;padding:10px 0}
+#qr-code,#acfun-qr-code{display:none;margin:10px auto}
+#qr-img,#acfun-qr-img{width:180px;height:180px;border-radius:8px;border:1px solid var(--border)}
+#qr-status,#acfun-qr-status{margin-top:8px;font-size:13px;color:var(--text-muted)}
+
+/* ---- Toast ---- */
+.toast-wrap{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:999}
+.tt{padding:10px 18px;border-radius:var(--radius);background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--glass-bd);box-shadow:var(--glass-shadow);font-size:13px;animation:slideUp .2s;max-width:320px}
+.tt.ok{border-color:rgba(26,127,55,0.3)}
+.tt.err{border-color:rgba(207,34,46,0.3)}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+/* ---- Responsive ---- */
+@media(max-width:768px){
+  .top{flex-wrap:wrap;padding:10px 10px 0;gap:6px}
+  .top-right{position:static;margin-left:auto}
+  .top-nav{order:3;width:100%;overflow-x:auto;display:flex;gap:3px;padding:3px;justify-content:center;flex-wrap:nowrap}
+  .top-nav a{font-size:13px;padding:6px 12px;white-space:nowrap;flex-shrink:0}
+  .main-card{padding:10px;margin:8px 4px 16px}
+  .stats{grid-template-columns:1fr 1fr;gap:6px}
+  .stats.cols-3{grid-template-columns:1fr 1fr}
+  .stats.cols-2{grid-template-columns:1fr 1fr}
+  .stat{padding:8px 6px}
+  .stat-num{font-size:16px}
+  .stat-lbl{font-size:10px}
+  .row{grid-template-columns:1fr;gap:10px}
+}
+
+/* Sub-item checkbox label */
+.sub-item-label{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:12px;cursor:pointer}
+.sub-item-label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Subscription generated result links */
+.sub-result{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.sub-result-link{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px}
+.sub-result-link .sub-label{font-size:11px;color:var(--accent);white-space:nowrap}
+.sub-result-link .sub-url{font-size:12px;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Subscription management row */
+.sub-mgmt-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;padding:6px 8px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px}
+.sub-mgmt-row .sub-name{flex:1;font-size:13px}
+.sub-mgmt-row .sub-count{font-size:11px;color:var(--text-muted)}
+
+/* Sub-items scroll area */
+.sub-items-scroll{max-height:400px;overflow-y:auto;padding-right:4px}
+.sub-group{margin-bottom:8px}
+.sub-group-title{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)}
+.sub-group-count{color:var(--text-muted);font-weight:400}
+</style>
+</head>
+<body>
+
+<!-- ═══ 顶部导航 ═══ -->
+<div class="top show" id="topBar">
+  <div class="top-logo">AB Player</div>
+  <nav class="top-nav" id="tabNav">
+    <a class="on" data-tab="bili">🅱️ Bilibili</a>
+    <a data-tab="acfun">🅰️ Acfun</a>
+    <a data-tab="sub">📋 订阅</a>
+    <a data-tab="settings">⚙️ 设置</a>
+  </nav>
+  <div class="top-right">
+    <label class="tswitch" title="切换主题">
+      <input type="checkbox" id="themeSwitch">
+      <span class="ts-track"></span>
+    </label>
+  </div>
+</div>
+
+<!-- ═══ 主内容 ═══ -->
+<div class="main-card" id="mainCard">
+
+  <!-- ══════ Bilibili ══════ -->
+  <section class="page on" id="pg-bili">
+    <h2 class="pg-title">🅱️ Bilibili 管理</h2>
+    <div class="stats" id="biliStats">
+      <div class="stat"><span class="stat-num" id="biliStatUps">0</span><span class="stat-lbl">UP 主</span></div>
+      <div class="stat"><span class="stat-num" id="biliStatSeries">0</span><span class="stat-lbl">合集</span></div>
+      <div class="stat"><span class="stat-num" id="biliStatVideos">0</span><span class="stat-lbl">单视频</span></div>
+      <div class="stat"><span class="stat-num" id="biliStatRooms">0</span><span class="stat-lbl">直播</span></div>
+    </div>
+
+    <!-- UP 主管理 -->
+    <div class="card">
+      <div class="card-h">👤 UP 主 <span class="tag" id="biliUpTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliUpInput" class="f-input" style="flex:1" placeholder="https://space.bilibili.com/123456">
+        <input id="biliUpName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliUp()">添加</button>
+      </div>
+      <div id="biliUpList" style="margin-top:8px">
+        <div class="loading">暂无 UP 主，输入 MID 添加</div>
+      </div>
+    </div>
+
+    <!-- 合集管理 -->
+    <div class="card">
+      <div class="card-h">📁 合集 <span class="tag" id="biliSeriesTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliSeriesUrl" class="f-input" style="flex:1" placeholder="https://space.bilibili.com/123456/lists/123456">
+        <input id="biliSeriesName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliSeries()">添加</button>
+      </div>
+      <div id="biliSeriesList" style="margin-top:8px">
+        <div class="loading">暂无合集，输入 URL 添加</div>
+      </div>
+    </div>
+
+    <!-- 单视频管理 -->
+    <div class="card">
+      <div class="card-h">📹 单视频 <span class="tag" id="biliVideoTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliVideoInput" class="f-input" style="flex:1" placeholder="BV号 或 B站视频链接">
+        <input id="biliVideoName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliVideo()">添加</button>
+      </div>
+      <div id="biliVideoList" style="margin-top:8px">
+        <div class="loading">暂无单视频，在上方输入 BV 号添加</div>
+      </div>
+    </div>
+
+    <!-- 直播管理 -->
+    <div class="card">
+      <div class="card-h">🔴 直播 <span class="tag" id="biliRoomTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliRoomInput" class="f-input" style="flex:1" placeholder="房间号 或 https://live.bilibili.com/12345">
+        <input id="biliRoomName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliRoom()">添加</button>
+      </div>
+      <div id="biliRoomList" style="margin-top:8px">
+        <div class="loading">暂无直播，在上方输入房间号添加</div>
+      </div>    </div>
+
+      </section>
+
+  <!-- ══════ Acfun ══════ -->
+  <section class="page" id="pg-acfun">
+    <h2 class="pg-title">🅰️ Acfun 管理</h2>
+    <div class="stats cols-3" id="acfunStats">
+      <div class="stat"><span class="stat-num" id="acfunStatUps">0</span><span class="stat-lbl">UP 主</span></div>
+      <div class="stat"><span class="stat-num" id="acfunStatAlbums">0</span><span class="stat-lbl">合辑</span></div>
+      <div class="stat"><span class="stat-num" id="acfunStatVideos">0</span><span class="stat-lbl">单视频</span></div>
+    </div>
+
+    <!-- UP 主管理 -->
+    <div class="card">
+      <div class="card-h">👤 UP 主 <span class="tag" id="acfunUpTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="acfunUpInput" class="f-input" style="flex:1" placeholder="https://www.acfun.cn/u/123456">
+        <input id="acfunUpName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addAcfunUp()">添加</button>
+      </div>
+      <div id="acfunUpList" style="margin-top:8px">
+        <div class="loading">暂无 UP 主，输入 UID 添加</div>
+      </div>
+    </div>
+
+    <!-- 合辑管理 -->
+    <div class="card">
+      <div class="card-h">📁 合辑 <span class="tag" id="acfunAlbumTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="acfunAlbumInput" class="f-input" style="flex:1" placeholder="https://www.acfun.cn/a/ab123456">
+        <input id="acfunAlbumName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addAcfunAlbum()">添加</button>
+      </div>
+      <div id="acfunAlbumList" style="margin-top:8px">
+        <div class="loading">暂无合辑，输入链接添加</div>
+      </div>
+    </div>
+
+    <!-- 单视频管理 -->
+    <div class="card">
+      <div class="card-h">📹 单视频 <span class="tag" id="acfunVideoTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="acfunVideoInput" class="f-input" style="flex:1" placeholder="contentId 或 A站视频链接 https://www.acfun.cn/v/ab123456">
+        <input id="acfunVideoName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addAcfunVideo()">添加</button>
+      </div>
+      <div id="acfunVideoList" style="margin-top:8px">
+        <div class="loading">暂无单视频，输入 contentId 添加</div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════ 订阅 ══════ -->
+  <section class="page" id="pg-sub">
+    <h2 class="pg-title">📋 订阅链接</h2>
+    <div class="stats cols-3" id="subStats">
+      <div class="stat"><span class="stat-num" id="subStatVod">0</span><span class="stat-lbl">点播订阅</span></div>
+      <div class="stat"><span class="stat-num" id="subStatLive">0</span><span class="stat-lbl">直播订阅</span></div>
+      <div class="stat"><span class="stat-num" id="subStatTotal">0</span><span class="stat-lbl">总订阅数</span></div>
+    </div>
+
+    <!-- 新建订阅 -->
+    <div class="card">
+      <div class="card-h">📝 新建订阅</div>
+
+      <!-- 分类管理 -->
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+        <input id="newCategoryName" class="f-input" style="width:160px" placeholder="新建分类名，如：123456">
+        <button class="btn btn-sm" onclick="addCategory()">➕ 添加分类</button>
+        <button class="btn btn-sm btn-danger" id="delCategoryBtn" onclick="delCategory()" style="display:none">🗑 删除分类</button>
+      </div>
+      <div id="categoryTagBar" style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap"></div>
+
+      <!-- 订阅名称 + 生成按钮 -->
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="subName" class="f-input" style="flex:1" placeholder="订阅名称，如：123456">
+        <button class="btn btn-primary" onclick="generateSub()">生成订阅</button>
+      </div>
+      <div id="subGenResult"></div>
+
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">勾选项目，已分类的按分类分组生成，未分类的各自独立</div>
+      <div id="subItemArea" class="sub-items-scroll">
+        <div class="loading">暂无项目，请先在 B站/A站 页面添加</div>
+      </div>
+    </div>
+
+    <!-- 订阅管理 -->
+    <div id="subMgmtCard" class="card">
+      <div class="card-h">📋 订阅管理</div>
+      <div style="margin-bottom:12px;font-size:13px;color:var(--text-muted)">已有订阅项目</div>
+      <div id="subList"></div>
+    </div>
+
+    
+  </section>
+
+  <!-- ══════ 设置 ══════ -->
+  <section class="page" id="pg-settings">
+    <h2 class="pg-title">⚙️ 设置</h2>
+
+    <div class="row">
+      <!-- B站 扫码登录 / Cookie -->
+      <div class="card">
+        <div class="card-h">🔑 B站 Cookie</div>
+        <div id="biliQrArea" style="text-align:center">
+          <button class="btn btn-primary" onclick="startBiliQRLogin()" id="biliQrStartBtn">📱 扫码登录</button>
+          <div id="biliQrCode" style="display:none;margin:10px auto">
+            <img id="biliQrImg" style="width:180px;height:180px;border-radius:8px;border:1px solid var(--border)">
+            <div id="biliQrStatus" style="margin-top:8px;font-size:13px;color:var(--text-muted)">等待扫码...</div>
+            <button class="btn btn-sm" onclick="stopBiliQRLogin()" style="margin-top:6px">取消</button>
+          </div>
+          <div id="biliCookieDisplay" style="margin-top:10px;min-height:130px"></div>
+        </div>
+        <div style="margin-top:12px;border-top:1px solid var(--border-l);padding-top:12px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">📝 手动添加 Cookie</div>
+          <div style="display:flex;gap:8px">
+            <input class="f-input" id="biliManualCookie" style="flex:1;font-size:11px;font-family:var(--mono)" placeholder="粘贴完整 Cookie 字符串">
+            <button class="btn btn-sm btn-primary" onclick="saveBiliCookie()">💾</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- A站 扫码登录 / Cookie -->
+      <div class="card">
+        <div class="card-h">🔑 A站 Cookie</div>
+        <div id="acfunQrArea" style="text-align:center">
+          <button class="btn btn-primary" onclick="startAcfunQRLogin()" id="acfunQrStartBtn">📱 扫码登录</button>
+          <div id="acfunQrCode" style="display:none;margin:10px auto">
+            <img id="acfunQrImg" style="width:180px;height:180px;border-radius:8px;border:1px solid var(--border)">
+            <div id="acfunQrStatus" style="margin-top:8px;font-size:13px;color:var(--text-muted)">等待扫码...</div>
+            <button class="btn btn-sm" onclick="stopAcfunQRLogin()" style="margin-top:6px">取消</button>
+          </div>
+          <div id="acfunCookieDisplay" style="margin-top:10px;min-height:130px"></div>
+        </div>
+        <div style="margin-top:12px;border-top:1px solid var(--border-l);padding-top:12px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">📝 手动添加 Cookie</div>
+          <div style="display:flex;gap:8px">
+            <input class="f-input" id="acfunManualCookie" style="flex:1;font-size:11px;font-family:var(--mono)" placeholder="粘贴完整 Cookie 字符串">
+            <button class="btn btn-sm btn-primary" onclick="saveAcfunCookie()">💾</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 定时刷新 -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-h">⏰ 定时刷新 <span class="tag" id="schedStatus">加载中...</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <label style="display:flex;align-items:center;gap:4px;font-size:14px;white-space:nowrap">
+          <input type="checkbox" id="schedEnabled"> 启用
+        </label>
+        <span style="font-size:13px;color:var(--text-muted);margin-left:4px">模式：</span>
+        <select id="schedMode" class="f-input" style="width:auto;padding:5px 8px;font-size:13px" onchange="toggleSchedMode()">
+          <option value="daily">每天固定时间</option>
+          <option value="interval">间隔小时</option>
+        </select>
+        <div id="schedDailyOpt" style="display:flex;align-items:center;gap:4px;white-space:nowrap">
+          <span style="font-size:13px;color:var(--text-muted)">每天：</span>
+          <input type="time" id="schedTime" class="f-input" style="width:120px;padding:5px 8px;font-size:13px" value="04:00">
+        </div>
+        <div id="schedIntervalOpt" style="display:none;align-items:center;gap:4px;white-space:nowrap">
+          <span style="font-size:13px;color:var(--text-muted)">每隔：</span>
+          <input type="number" id="schedInterval" class="f-input" style="width:60px;padding:5px 8px;font-size:13px" value="4" min="1" max="48">
+          <span style="font-size:13px;color:var(--text-muted)">小时</span>
+        </div>
+        <button class="btn btn-primary" onclick="saveSchedule()" style="padding:5px 12px;font-size:13px">💾 保存</button>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:6px;font-size:12px;color:var(--text-muted)">
+        <span id="schedLastRun"></span>
+        <span id="schedLastStatus"></span>
+      </div>
+    </div>
+    <!-- 缓存管理 -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-h">🗑️ 缓存管理</div>
+      <button class="btn btn-primary" onclick="clearCache()">🗑️ 清除缓存</button>
+    </div>
+  </section>
+
+<!-- 页脚：公众号 + GitHub -->
+<div class="dash-ft">
+  <div class="dash-ft-item" id="mpWrap">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="#07c160"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.045c.134 0 .24-.11.24-.245 0-.06-.024-.12-.04-.178l-.325-1.233a.492.492 0 0 1 .177-.554C23.025 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-7.062-6.122zm-2.18 2.677c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.97-.982zm4.844 0c.535 0 .969.44.969.982a.976.976 0 0 1-.969.983.976.976 0 0 1-.969-.983c0-.542.434-.982.97-.982z"/></svg>
+    <span class="mp-label">公众号</span>
+    <div class="mp-popup"><img src="/static/qr.png" alt="公众号二维码"></div>
+  </div>
+  <a class="dash-ft-item" href="https://github.com/kanchairen-d/AB-Player" target="_blank" rel="noopener" style="color:var(--text-muted);text-decoration:none">
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="var(--text-muted)"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.07 1.87 3.75 3.65 3.95-.29.25-.54.73-.54 1.48 0 1.07.01 1.93.01 2.2 0 .21-.15.46-.55.38A8.013 8.013 0 0 1 0 8c0-4.42 3.58-8 8-8z"/></svg>
+    <span>GitHub</span>
+  </a>
+</div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  核心工具函数
+// ═══════════════════════════════════════════════════════════════════
+
+// API 调用：用 FormData POST 到 /admin?action=xxx
+function api(action, data, cb) {
+  var fd = new FormData();
+  if (data) { for (var k in data) { fd.append(k, data[k]); } }
+  fetch('/admin?action=' + action, { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (cb) cb(j);
+      else if (j.ok) { showToast('✅ 操作成功'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '操作失败')); }
+    })
+    .catch(function(e){ showToast('❌ 网络错误'); });
+}
+
+// HTML 转义
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Toast 提示
+function showToast(msg) {
+  var w = document.getElementById('toastWrap');
+  var t = document.createElement('div');
+  t.className = 'tt' + (msg.indexOf('❌') !== -1 ? ' err' : ' ok');
+  t.textContent = msg;
+  w.appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){ t.remove() }, 300); }, 2000);
+}
+
+// 复制// 复制文本
+function copyText(el) {
+  var text = typeof el === 'string' ? el : (el.textContent || el.innerText);
+  var txt = text.trim();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function(){ showToast('✅ 已复制'); }).catch(function(){ fallbackCopy(txt); });
+  } else {
+    fallbackCopy(txt);
+  }
+}
+function fallbackCopy(txt) {
+  var ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('✅ 已复制'); } catch(e) { showToast('❌ 复制失败'); }
+  document.body.removeChild(ta);
+}
+
+// URL 解析辅助
+function parseBiliSeriesUrl(url) {
+  var sid = '', mid = '', fmt = 'channel';
+  var m1 = url.match(/space\.bilibili\.com\/(\d+)\/lists\/(\d+)/);
+  if (m1) {
+    mid = m1[1]; sid = m1[2];
+    fmt = url.indexOf('type=series') >= 0 ? 'channel' : 'list';
+  }
+  else {
+    var m2 = url.match(/space\.bilibili\.com\/(\d+)\/channel\/series\/(\d+)/);
+    if (m2) { mid = m2[1]; sid = m2[2]; }
+    else {
+      var m3 = url.match(/bilibili\.com\/medialist\/play\/(\d+)\/(\d+)/);
+      if (m3) { mid = m3[1]; sid = m3[2]; }
+      else {
+        var m4 = url.match(/seriesId[=\/](\d+)/);
+        if (m4) { sid = m4[1]; }
+      }
+    }
+  }
+  return { sid: sid, mid: mid, fmt: fmt };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  主题切换
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  var th = document.getElementById('themeSwitch');
+  var html = document.documentElement;
+  var curr = localStorage.getItem('ab2-theme') || 'light';
+  html.setAttribute('data-theme', curr);
+  if (th) th.checked = curr === 'light';
+  if (th) th.addEventListener('change', function(){
+    var t = this.checked ? 'light' : 'dark';
+    html.setAttribute('data-theme', t);
+    localStorage.setItem('ab2-theme', t);
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+//  Tab 切换
+// ═══════════════════════════════════════════════════════════════════
+document.querySelectorAll('.top-nav a').forEach(function(a){
+  a.addEventListener('click', function(){
+    var tab = this.dataset.tab;
+    document.querySelectorAll('.top-nav a').forEach(function(x){ x.classList.remove('on'); });
+    this.classList.add('on');
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+    document.getElementById('pg-' + tab).classList.add('on');
+    // 更新浏览器标签名
+    var tabNames = { bili: 'Bilibili', acfun: 'Acfun', sub: '订阅', settings: '设置' };
+    document.title = (tabNames[tab] || tab) + ' - AB Player';
+    var url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', url);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  加载配置
+// ═══════════════════════════════════════════════════════════════════
+var _cfg = {};
+
+function loadConfig() {
+  fetch('/admin?action=load_config')
+    .then(function(r){ return r.json(); })
+    .then(function(cfg) {
+      _cfg = cfg;
+      renderBiliSeries(cfg);
+      renderBiliUps(cfg);
+      renderBiliRooms(cfg);
+      renderBiliVideos(cfg);
+      renderAcfunAlbums(cfg);
+      renderAcfunUps(cfg);
+      renderAcfunVideos(cfg);
+      renderStats(cfg);
+      renderSubItems(_cfg);
+      renderSubList(cfg);
+      renderBiliCookie(cfg);
+      renderAcfunCookie(cfg);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Stats 渲染
+// ═══════════════════════════════════════════════════════════════════
+function renderStats(cfg) {
+  var biliSeries = cfg.bili_series || [];
+  var biliUps = cfg.bili_ups || [];
+  var biliVideos = cfg.bili_videos || [];
+  var biliRooms = cfg.bili_rooms || [];
+  var acfunAlbums = cfg.acfun_albums || [];
+  var acfunUps = cfg.acfun_ups || [];
+  var acfunVideos = cfg.acfun_videos || [];
+  var subs = cfg.subscriptions || [];
+
+  document.getElementById('biliStatSeries').textContent = biliSeries.length;
+  document.getElementById('biliStatUps').textContent = biliUps.length;
+  document.getElementById('biliStatVideos').textContent = biliVideos.length;
+  document.getElementById('biliStatRooms').textContent = biliRooms.length;
+  document.getElementById('biliSeriesTag').textContent = biliSeries.length;
+  document.getElementById('biliUpTag').textContent = biliUps.length;
+  document.getElementById('biliRoomTag').textContent = biliRooms.length;
+  document.getElementById('biliVideoTag').textContent = biliVideos.length;
+
+  document.getElementById('acfunStatAlbums').textContent = acfunAlbums.length;
+  document.getElementById('acfunStatUps').textContent = acfunUps.length;
+  document.getElementById('acfunStatVideos').textContent = acfunVideos.length;
+  document.getElementById('acfunAlbumTag').textContent = acfunAlbums.length;
+  document.getElementById('acfunUpTag').textContent = acfunUps.length;
+  document.getElementById('acfunVideoTag').textContent = acfunVideos.length;
+
+  var vodCount = 0, liveCount = 0;
+  subs.forEach(function(s){
+    var cnt = (s.items || []).length;
+    if ((s.type || 'vod') === 'live') liveCount += cnt;
+    else vodCount += cnt;
+  });
+  document.getElementById('subStatVod').textContent = vodCount;
+  document.getElementById('subStatLive').textContent = liveCount;
+  document.getElementById('subStatTotal').textContent = subs.length;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  B站合集
+// ═══════════════════════════════════════════════════════════════════
+function renderBiliSeries(cfg) {
+  var list = cfg.bili_series || [];
+  var el = document.getElementById('biliSeriesList');
+  if (!list.length) {
+    el.innerHTML = '<div class="loading">暂无合集，输入 URL 添加</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(s){
+    var sid = s.series_id || '';
+    var smid = s.mid || '';
+    var sname = esc(s.name || '合集 #' + sid);
+    return '<div class="proc-row"><span class="proc-name">' + sname + '</span><span style="text-align:right;white-space:nowrap">' +
+      '<a class="btn btn-sm" href="/bili?series=' + esc(sid) + '&mid=' + esc(smid) + '" target="_blank">查看</a> ' +
+      '<button class="btn btn-sm" onclick="refreshBiliSeries(\'' + sid + '\',\'' + smid + '\',\'' + (s.fmt||'channel') + '\')">刷新</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteBiliSeries(\'' + sid + '\')">删除</button></span></div>';
+  }).join('');
+}
+
+function addBiliSeries() {
+  var url = document.getElementById('biliSeriesUrl').value.trim();
+  if (!url) { showToast('❌ 请输入 URL'); return; }
+  var parsed = parseBiliSeriesUrl(url);
+  if (!parsed.sid) { showToast('❌ 无法解析合集 URL'); return; }
+  var customName = document.getElementById('biliSeriesName').value.trim();
+  if (customName) {
+    api('add_series', { series_id: parsed.sid, mid: parsed.mid, series_name: customName, fmt: parsed.fmt }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(customName) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+    return;
+  }
+  fetch('/admin?action=series_info&series_id=' + parsed.sid + '&mid=' + parsed.mid + '&fmt=' + parsed.fmt)
+  .then(function(r){ return r.json(); }).then(function(info){
+    var sname = (info && info.name) ? info.name : ('合集 #' + parsed.sid);
+    api('add_series', { series_id: parsed.sid, mid: parsed.mid, series_name: sname, fmt: parsed.fmt }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(sname) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  });
+}
+
+function deleteBiliSeries(sid) {
+  if (!confirm('确定删除该合集吗？')) return;
+  api('delete_series', { series_id: sid }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+function refreshBiliSeries(sid, mid, fmt) {
+  api('refresh_series', { series_id: sid, mid: mid, fmt: fmt }, function(j){
+    if (j.ok) { showToast('✅ ' + (j.msg || '合集已刷新')); }
+    else { showToast('❌ ' + (j.error || '刷新失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  B站 UP 主
+// ═══════════════════════════════════════════════════════════════════
+function renderBiliUps(cfg) {
+  var list = cfg.bili_ups || [];
+  var el = document.getElementById('biliUpList');
+  if (!list.length) {
+    el.innerHTML = '<div class="loading">暂无 UP 主，输入 MID 添加</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(u){
+    var mid = u.mid || '';
+    var uname = esc(u.name || 'UP #' + mid);
+    return '<div class="proc-row"><span class="proc-name">' + uname + '</span><span style="text-align:right;white-space:nowrap">' +
+      '<a class="btn btn-sm" href="/bili?up=' + esc(mid) + '" target="_blank">查看</a> ' +
+      '<button class="btn btn-sm" onclick="refreshBiliUp(\'' + mid + '\')">刷新</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteBiliUp(\'' + mid + '\')">删除</button></span></div>';
+  }).join('');
+}
+
+function addBiliUp() {
+  var input = document.getElementById('biliUpInput').value.trim();
+  if (!input) { showToast('❌ 请输入 mid'); return; }
+  var m1 = input.match(/space\.bilibili\.com\/(\d+)/);
+  var mid = m1 ? m1[1] : input;
+  var customName = document.getElementById('biliUpName').value.trim();
+  if (customName) {
+    api('add_up', { up_mid: mid, up_name: customName }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(customName) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+    return;
+  }
+  // 没填名称则自动获取
+  fetch('/admin?action=up_info&mid=' + mid).then(function(r){ return r.json(); }).then(function(info){
+    var uname = (info && info.name) ? info.name : ('UP #' + mid);
+    api('add_up', { up_mid: mid, up_name: uname }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(uname) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  }).catch(function(){
+    api('add_up', { up_mid: mid, up_name: 'UP #' + mid }, function(j){
+      if (j.ok) { showToast('✅ UP 主已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  });
+}
+
+function deleteBiliUp(mid) {
+  if (!confirm('确定删除该 UP 主吗？')) return;
+  api('delete_up', { up_mid: mid }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+function refreshBiliUp(mid) {
+  api('refresh_up', { up_mid: mid }, function(j){
+    if (j.ok) { showToast('✅ ' + (j.msg || 'UP主已刷新')); }
+    else { showToast('❌ ' + (j.error || '刷新失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  B站 直播
+// ═══════════════════════════════════════════════════════════════════
+function renderBiliRooms(cfg) {
+  var list = cfg.bili_rooms || [];
+  var el = document.getElementById('biliRoomList');
+  if (!list.length) {
+    el.innerHTML = '<div class="loading">暂无直播，在上方输入房间号添加</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(r){
+    var rid = r.room_id || '';
+    var rname = esc(r.name || '直播 #' + rid);
+    return '<div class="proc-row"><span class="proc-name">🔴 ' + rname + '</span><span style="text-align:right;white-space:nowrap">' +
+      '<a class="btn btn-sm" href="/bili?room=' + esc(rid) + '" target="_blank">查看</a> ' +
+      '<button class="btn btn-sm" onclick="refreshBiliRoom(\'' + rid + '\')">刷新</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteBiliRoom(\'' + rid + '\')">删除</button></span></div>';
+  }).join('');
+}
+
+function addBiliRoom() {
+  var input = document.getElementById('biliRoomInput').value.trim();
+  if (!input) { showToast('❌ 请输入房间号'); return; }
+  var m1 = input.match(/live\.bilibili\.com\/(\d+)/);
+  var rid = m1 ? m1[1] : input;
+  var customName = document.getElementById('biliRoomName').value.trim();
+  if (customName) {
+    api('add_room', { room_id: rid, room_name: customName }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(customName) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+    return;
+  }
+  // 没填名称则自动获取
+  fetch('/admin?action=room_info&room_id=' + rid).then(function(r){ return r.json(); }).then(function(info){
+    var rname = (info && info.title) ? info.title : ('直播 #' + rid);
+    var runame = (info && info.uname) ? ' - ' + info.uname : '';
+    api('add_room', { room_id: rid, room_name: rname + runame }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(rname) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  }).catch(function(){
+    api('add_room', { room_id: rid, room_name: '直播 #' + rid }, function(j){
+      if (j.ok) { showToast('✅ 直播已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  });
+}
+
+function deleteBiliRoom(rid) {
+  if (!confirm('确定删除该直播间吗？')) return;
+  api('delete_room', { room_id: rid }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+function refreshBiliRoom(rid) {
+  api('refresh_room', { room_id: rid }, function(j){
+    if (j.ok) { showToast('✅ ' + (j.msg || '直播已刷新')); }
+    else { showToast('❌ ' + (j.error || '刷新失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  B站 单视频
+// ═══════════════════════════════════════════════════════════════════
+function renderBiliVideos(cfg) {
+  var list = cfg.bili_videos || [];
+  var el = document.getElementById('biliVideoList');
+  if (!list.length) {
+    el.innerHTML = '<div class="loading">暂无单视频，在上方输入 BV 号添加</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(v){
+    var vid = v.id || '';
+    var vname = esc(v.name || '视频 #' + vid);
+    return '<div class="proc-row"><span class="proc-name">' + vname + '</span><span style="text-align:right;white-space:nowrap">' +
+      '<a class="btn btn-sm" href="/bili?id=' + esc(vid) + '" target="_blank">查看</a> ' +
+      '<button class="btn btn-sm" onclick="refreshBiliVideo(\'' + vid + '\')">刷新</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteBiliVideo(\'' + vid + '\')">删除</button></span></div>';
+  }).join('');
+}
+
+function addBiliVideo() {
+  var input = document.getElementById('biliVideoInput').value.trim();
+  if (!input) { showToast('❌ 请输入 BV 号'); return; }
+  var m1 = input.match(/(BV[0-9A-Za-z]{9,12})/);
+  var bvid = m1 ? m1[1] : input;
+  var customName = document.getElementById('biliVideoName').value.trim();
+  if (customName) {
+    api('add_video', { video_id: bvid, video_name: customName }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(customName) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+    return;
+  }
+  // 没填名称则自动获取
+  fetch('/api?info=' + bvid).then(function(r){ return r.json(); }).then(function(info){
+    var realTitle = (info && info.data && info.data.title) ? info.data.title : null;
+    var vname = realTitle || ('视频 #' + bvid);
+    api('add_video', { video_id: bvid, video_name: vname }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(vname) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  }).catch(function(){
+    // 获取失败就用默认名称
+    api('add_video', { video_id: bvid, video_name: '视频 #' + bvid }, function(j){
+      if (j.ok) { showToast('✅ 视频已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  });
+}
+
+function deleteBiliVideo(vid) {
+  if (!confirm('确定删除该视频吗？')) return;
+  api('delete_video', { video_id: vid }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+function refreshBiliVideo(vid) {
+  api('refresh_bili_video', { video_id: vid }, function(j){
+    if (j.ok) { showToast('✅ 已刷新: ' + j.name); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '刷新失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  A站 合辑
+// ═══════════════════════════════════════════════════════════════════
+function renderAcfunAlbums(cfg) {
+  var list = cfg.acfun_albums || [];
+  var el = document.getElementById('acfunAlbumList');
+  if (!list.length) {
+    el.innerHTML = '<div class="loading">暂无合辑，输入链接添加</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(a){
+    var aid = a.id || '';
+    var aname = esc(a.name || '合辑 #' + aid);
+    return '<div class="proc-row"><span class="proc-name">' + aname + '</span><span style="text-align:right;white-space:nowrap">' +
+      '<a class="btn btn-sm" href="/acfun?album=' + esc(aid) + '" target="_blank">查看</a> ' +
+      '<button class="btn btn-sm" onclick="refreshAcfunAlbum(\'' + aid + '\')">刷新</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteAcfunAlbum(\'' + aid + '\')">删除</button></span></div>';
+  }).join('');
+}
+
+function addAcfunAlbum() {
+  var input = document.getElementById('acfunAlbumInput').value.trim();
+  if (!input) { showToast('❌ 请输入链接'); return; }
+  var m1 = input.match(/acfun\.cn\/a\/(\w+)/);
+  var aid = m1 ? m1[1] : input;
+  var customName = document.getElementById('acfunAlbumName').value.trim();
+  if (customName) {
+    api('add_album', { album_id: aid, album_name: customName }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(customName) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+    return;
+  }
+  fetch('/admin?action=acfun_album_info&album_id=' + aid).then(function(r){ return r.json(); }).then(function(info){
+    var aname = (info && info.title) ? info.title : ('合辑 #' + aid);
+    api('add_album', { album_id: aid, album_name: aname }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(aname) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  }).catch(function(){
+    api('add_album', { album_id: aid, album_name: '合辑 #' + aid }, function(j){
+      if (j.ok) { showToast('✅ 合辑已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  });
+}
+
+function deleteAcfunAlbum(aid) {
+  if (!confirm('确定删除该合辑吗？')) return;
+  api('delete_album', { album_id: aid }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+function refreshAcfunAlbum(aid) {
+  api('refresh_album', { album_id: aid }, function(j){
+    if (j.ok) { showToast('✅ ' + (j.msg || '合辑已刷新')); }
+    else { showToast('❌ ' + (j.error || '刷新失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  UP 主
+// ═══════════════════════════════════════════════════════════════════
+function renderAcfunUps(cfg) {
+  var list = cfg.acfun_ups || [];
+  var el = document.getElementById('acfunUpList');
+  if (!list.length) {
+    el.innerHTML = '<div class="loading">暂无 UP 主，输入 UID 添加</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(u){
+    var uid = u.uid || u.mid || '';
+    var uname = esc(u.name || 'UP #' + uid);
+    return '<div class="proc-row"><span class="proc-name">' + uname + '</span><span style="text-align:right;white-space:nowrap">' +
+      '<a class="btn btn-sm" href="/acfun?up=' + esc(uid) + '" target="_blank">查看</a> ' +
+      '<button class="btn btn-sm" onclick="refreshAcfunUp(\'' + uid + '\')">刷新</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteAcfunUp(\'' + uid + '\')">删除</button></span></div>';
+  }).join('');
+}
+
+function addAcfunUp() {
+  var input = document.getElementById('acfunUpInput').value.trim();
+  if (!input) { showToast('❌ 请输入 UID'); return; }
+  var m1 = input.match(/acfun\.cn\/u\/(\d+)/);
+  var uid = m1 ? m1[1] : input;
+  var customName = document.getElementById('acfunUpName').value.trim();
+  if (customName) {
+    api('add_acfun_up', { acfun_up_mid: uid, acfun_up_name: customName }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(customName) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+    return;
+  }
+  fetch('/admin?action=acfun_up_info&up_mid=' + uid).then(function(r){ return r.json(); }).then(function(info){
+    var uname = (info && info.name) ? info.name : ('UP #' + uid);
+    api('add_acfun_up', { acfun_up_mid: uid, acfun_up_name: uname }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(uname) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  }).catch(function(){
+    api('add_acfun_up', { acfun_up_mid: uid, acfun_up_name: 'UP #' + uid }, function(j){
+      if (j.ok) { showToast('✅ UP 主已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  });
+}
+
+function deleteAcfunUp(uid) {
+  if (!confirm('确定删除该 UP 主吗？')) return;
+  api('delete_acfun_up', { acfun_up_mid: uid }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+function refreshAcfunUp(uid) {
+  api('refresh_acfun_up', { acfun_up_mid: uid }, function(j){
+    if (j.ok) { showToast('✅ ' + (j.msg || 'UP主已刷新')); }
+    else { showToast('❌ ' + (j.error || '刷新失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  单视频
+// ═══════════════════════════════════════════════════════════════════
+function renderAcfunVideos(cfg) {
+  var list = cfg.acfun_videos || [];
+  var el = document.getElementById('acfunVideoList');
+  if (!list.length) {
+    el.innerHTML = '<div class="loading">暂无单视频，输入 contentId 添加</div>';
+    return;
+  }
+  el.innerHTML = list.map(function(v){
+    var vid = v.id || '';
+    var vname = esc(v.name || '视频 #' + vid);
+    return '<div class="proc-row"><span class="proc-name">' + vname + '</span><span style="text-align:right;white-space:nowrap">' +
+      '<a class="btn btn-sm" href="/acfun?id=' + esc(vid) + '" target="_blank">查看</a> ' +
+      '<button class="btn btn-sm" onclick="refreshAcfunVideo(\'' + vid + '\')">刷新</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteAcfunVideo(\'' + vid + '\')">删除</button></span></div>';
+  }).join('');
+}
+
+function addAcfunVideo() {
+  var input = document.getElementById('acfunVideoInput').value.trim();
+  if (!input) { showToast('❌ 请输入 contentId'); return; }
+  var m1 = input.match(/acfun\.cn\/v\/(ac\d+)/);
+  var id = m1 ? m1[1] : input;
+  if (id.indexOf('ac') === 0) id = id.substring(2);
+  var customName = document.getElementById('acfunVideoName').value.trim();
+  if (customName) {
+    api('add_acfun_video', { acfun_video_id: id, acfun_video_name: customName }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(customName) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+    return;
+  }
+  fetch('/admin?action=acfun_video_info&video_id=' + id).then(function(r){ return r.json(); }).then(function(info){
+    var vname = (info && info.title) ? info.title : ('视频 #' + id);
+    api('add_acfun_video', { acfun_video_id: id, acfun_video_name: vname }, function(j){
+      if (j.ok) { showToast('✅ ' + esc(vname) + ' 已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  }).catch(function(){
+    api('add_acfun_video', { acfun_video_id: id, acfun_video_name: '视频 #' + id }, function(j){
+      if (j.ok) { showToast('✅ 视频已添加'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '添加失败')); }
+    });
+  });
+}
+
+function deleteAcfunVideo(vid) {
+  if (!confirm('确定删除该视频吗？')) return;
+  api('delete_acfun_video', { acfun_video_id: vid }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+function refreshAcfunVideo(vid) {
+  api('refresh_acfun_video', { acfun_video_id: vid }, function(j){
+    if (j.ok) { showToast('✅ 已刷新: ' + j.name); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '刷新失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  订阅项目多选框渲染
+// ═══════════════════════════════════════════════════════════════════
+function renderSubItems(cfg) {
+  var el = document.getElementById('subItemArea');
+
+  // 收集所有源类型
+  var allItems = [];
+  (cfg.bili_series || []).forEach(function(s){
+    allItems.push({ id: 'series_' + (s.series_id || s.id), name: s.name || '合集 #' + (s.series_id || s.id), type: 'B站合集' });
+  });
+  (cfg.bili_ups || []).forEach(function(u){
+    allItems.push({ id: 'up_' + u.mid, name: u.name || 'UP主 #' + u.mid, type: 'B站UP主' });
+  });
+  (cfg.bili_videos || []).forEach(function(v){
+    allItems.push({ id: 'video_' + v.id, name: v.name || '视频 #' + v.id, type: 'B站单视频' });
+  });
+  (cfg.bili_rooms || []).forEach(function(r){
+    allItems.push({ id: 'room_' + r.room_id, name: r.name || '直播 #' + r.room_id, type: 'B站直播' });
+  });
+  (cfg.acfun_albums || []).forEach(function(a){
+    allItems.push({ id: 'acfun_album_' + a.id, name: a.name || '合辑 #' + a.id, type: 'A站合辑' });
+  });
+  (cfg.acfun_ups || []).forEach(function(u){
+    allItems.push({ id: 'acfun_up_' + (u.uid || u.mid), name: u.name || 'UP主 #' + (u.uid || u.mid), type: 'A站UP主' });
+  });
+  (cfg.acfun_videos || []).forEach(function(v){
+    allItems.push({ id: 'acfun_video_' + v.id, name: v.name || '视频 #' + v.id, type: 'A站单视频' });
+  });
+
+  if (!allItems.length) {
+    el.innerHTML = '<div class="loading">暂无项目，请先在 B站/A站 页面添加</div>';
+    return;
+  }
+
+  // 按分类分组
+  var cats = _cfg.categories || [];
+  var catMap = {};  // 分类名 -> [items]
+  cats.forEach(function(c){ catMap[c.name] = []; });
+  catMap['_uncat'] = [];
+
+  allItems.forEach(function(it){
+    var found = false;
+    cats.forEach(function(c){
+      if ((c.items || []).indexOf(it.id) !== -1) {
+        catMap[c.name].push(it);
+        found = true;
+      }
+    });
+    if (!found) catMap['_uncat'].push(it);
+  });
+
+  // 渲染
+  var parts = [];
+  function renderCat(cn, items, isUncat) {
+    if (!items.length) return '';
+    var title = isUncat ? '📦 未分类' : cn;
+    var tid = isUncat ? 'uncat' : cn.replace(/[^\w\u4e00-\u9fff\s]/g, '').replace(/\s/g, '_');
+    var cats = _cfg.categories || [];
+    var catOptions = '<option value="">选择分类...</option>' + cats.map(function(c){ return '<option value="' + esc(c.name) + '">' + esc(c.name) + '</option>'; }).join('');
+    var catCheckId = 'catcb_' + tid;
+    var escCn = esc(cn);
+    return '<div class="sub-group">' +
+      '<div class="sub-group-title" onclick="toggleSubCat(\'' + esc(tid) + '\')" style="cursor:pointer">' +
+      '<span class="cat-toggle">▾</span> ' +
+      (isUncat ? '' : '<input type="checkbox" class="cat-checkbox" id="' + catCheckId + '" data-cat="' + escCn + '" onclick="event.stopPropagation();toggleCatItems(this,\'' + tid + '\')" style="margin-right:4px"> ') +
+      esc(title) + ' <span class="sub-group-count">(' + items.length + ')</span>' +
+      (isUncat ? '' : ' <span class="cat-actions"><a href="#" onclick="event.stopPropagation();renameCategory(\'' + escCn.replace(/'/g,"\\'") + '\');return false" title="重命名">✏️</a> <a href="#" onclick="event.stopPropagation();delCategoryByName(\'' + escCn.replace(/'/g,"\\'") + '\');return false" title="删除">🗑</a></span>') +
+      '</div>' +
+      '<div id="subcat_' + tid + '" class="sub-cat-body">' +
+      items.map(function(it){
+        var moveUI = isUncat ? ' <select class="move-cat-select" data-id="' + esc(it.id) + '" onchange="moveItemToCategory(this)">' + catOptions + '</select>' : '';
+        var rmBtn = isUncat ? '' : ' <a href="#" onclick="event.stopPropagation();removeFromCategory(\'' + esc(it.id) + '\',\'' + escCn.replace(/'/g,"\\'") + '\');return false" title="移出分类" style="color:var(--text-muted);text-decoration:none;font-size:12px">✕</a>';
+        return '<label class="sub-item-label"><input type="checkbox" class="sub-item" value="' + esc(it.id) + '"> ' +
+          '<span class="item-type-tag">' + esc(it.type) + '</span> ' +
+          '<span>' + esc(it.name) + '</span>' + moveUI + rmBtn + '</label>';
+      }).join('') + '</div></div>';
+  }
+
+  var catKeys = Object.keys(catMap);
+  catKeys.forEach(function(k){
+    if (k === '_uncat') return;
+    parts.push(renderCat(k, catMap[k], false));
+  });
+  if (catMap['_uncat'].length) {
+    parts.push(renderCat('未分类', catMap['_uncat'], true));
+  }
+
+  // 为未分类的 item 添加移动按钮
+  setTimeout(function(){
+    document.querySelectorAll('.move-to-cat').forEach(function(btn){
+      btn.onclick = function(){
+        var id = btn.getAttribute('data-id');
+        var catName = prompt('移动到哪个分类？\n已有分类：' + cats.map(function(c){ return c.name; }).join(', '));
+        if (!catName) return;
+        var targetCat = null;
+        cats.forEach(function(c){
+          if (c.name === catName) targetCat = c;
+        });
+        if (!targetCat) {
+          showToast('❌ 分类「' + catName + '」不存在');
+          return;
+        }
+        // 从未分类移除
+        var uncat = _cfg.categories = _cfg.categories || [];
+        // 添加到目标分类
+        if ((targetCat.items || []).indexOf(id) === -1) {
+          targetCat.items.push(id);
+        }
+        // 保存
+        saveCategories(_cfg.categories);
+        renderCategoryTags(_cfg.categories);
+        renderSubItems(_cfg);
+      };
+    });
+  }, 0);
+
+  el.innerHTML = parts.join('');
+}
+
+function toggleCatItems(cb, tid) {
+  var body = document.getElementById('subcat_' + tid);
+  if (body) {
+    var subCbs = body.querySelectorAll('.sub-item');
+    subCbs.forEach(function(scb){ scb.checked = cb.checked; });
+  }
+}
+
+function toggleSubCat(id) {
+  var el = document.getElementById('subcat_' + id);
+  if (el) {
+    var isHidden = el.style.display === 'none';
+    el.style.display = isHidden ? '' : 'none';
+    var toggle = el.previousElementSibling ? el.previousElementSibling.querySelector('.cat-toggle') : null;
+    if (toggle) toggle.textContent = isHidden ? '▾' : '▸';
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+//  分类管理
+// ═══════════════════════════════════════════════════════════════════
+var _selectedCategory = null;
+
+function addCategory() {
+  var input = document.getElementById('newCategoryName');
+  var cn = input.value.trim();
+  if (!cn) { showToast('❌ 请输入分类名'); return; }
+  var cats = _cfg.categories || [];
+  if (cats.some(function(c){ return c.name === cn; })) {
+    showToast('⚠️ 分类已存在');
+    return;
+  }
+  cats.push({ name: cn, items: [] });
+  _cfg.categories = cats;
+  input.value = '';
+  saveCategories(cats);
+  renderCategoryTags(cats);
+  renderSubItems(_cfg);
+}
+
+function delCategory() {
+  var sel = document.querySelector('.cat-tag.active');
+  if (!sel) { showToast('请先点击要删除的分类'); return; }
+  var cn = sel.getAttribute('data-name');
+  delCategoryByName(cn);
+}
+
+function delCategoryByName(cn) {
+  if (!cn) return;
+  if (!confirm('删除分类「' + cn + '」？其下项目将回到未分类')) return;
+  var cats = _cfg.categories || [];
+  _cfg.categories = cats.filter(function(c){ return c.name !== cn; });
+  saveCategories(_cfg.categories);
+  renderCategoryTags(_cfg.categories);
+  renderSubItems(_cfg);
+}
+
+function renameCategory(oldName) {
+  var newName = prompt('重命名分类「' + oldName + '」为：', oldName);
+  if (!newName || newName === oldName) return;
+  var cats = _cfg.categories || [];
+  var found = false;
+  cats.forEach(function(c){
+    if (c.name === oldName) { c.name = newName; found = true; }
+  });
+  if (!found) return;
+  _cfg.categories = cats;
+  saveCategories(cats);
+  renderCategoryTags(cats);
+  renderSubItems(_cfg);
+}
+
+function removeFromCategory(itemId, catName) {
+  var cats = _cfg.categories || [];
+  cats.forEach(function(c){
+    if (c.name === catName) {
+      c.items = (c.items || []).filter(function(id){ return id !== itemId; });
+    }
+  });
+  _cfg.categories = cats;
+  saveCategories(cats);
+  renderCategoryTags(cats);
+  renderSubItems(_cfg);
+}
+
+function saveCategories(cats) {
+  fetch('/admin?action=save_categories', {
+    method: 'POST',
+    body: new URLSearchParams({ cat_items: JSON.stringify(cats) }),
+  }).then(function(r){ return r.json(); });
+}
+
+function renderCategoryTags(cats) {
+  var bar = document.getElementById('categoryTagBar');
+  if (!cats || !cats.length) {
+    bar.innerHTML = '<span style="color:var(--text-muted);font-size:12px">暂无分类，在上方添加</span>';
+    return;
+  }
+  bar.innerHTML = cats.map(function(c){
+    return '<span class="cat-tag" data-name="' + esc(c.name) + '" onclick="selectCategory(this);selectCategoryItems(\'' + esc(c.name) + '\')">' +
+      esc(c.name) + ' <span style="opacity:.6">(' + (c.items||[]).length + ')</span></span>';
+  }).join('') +
+    '<span class="cat-tag" onclick="selectCategory(null);selectCategoryItems(null)" style="opacity:.7">📦 全部</span>';
+}
+
+function selectCategory(el) {
+  document.querySelectorAll('.cat-tag').forEach(function(t){ t.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  var delBtn = document.getElementById('delCategoryBtn');
+  delBtn.style.display = el ? 'inline-block' : 'none';
+}
+
+function selectCategoryItems(cn) {
+  document.querySelectorAll('.sub-cat-body').forEach(function(el){
+    if (cn === null) {
+      el.style.display = '';
+    } else {
+      var parent = el.closest('.sub-group');
+      if (parent) {
+        var title = parent.querySelector('.sub-group-title');
+        if (title && title.textContent.indexOf(cn) !== -1) {
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      }
+    }
+  });
+}
+
+function moveItemToCategory(sel) {
+  var id = sel.getAttribute('data-id');
+  var cn = sel.value;
+  if (!cn) return;
+  var cats = _cfg.categories || [];
+  var target = null;
+  cats.forEach(function(c){
+    if (c.name === cn) target = c;
+  });
+  if (!target) { showToast('❌ 分类不存在'); return; }
+  if ((target.items || []).indexOf(id) === -1) {
+    target.items.push(id);
+  }
+  // 也从未分类中去掉（但 renderSubItems 会重新计算，所以不用）。
+  _cfg.categories = cats;
+  saveCategories(cats);
+  renderCategoryTags(cats);
+  renderSubItems(_cfg);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  订阅生成 & 管理
+// ═══════════════════════════════════════════════════════════════════
+function generateSub() {
+  var name = document.getElementById('subName').value.trim();
+  if (!name) { showToast('❌ 请输入订阅名称'); return; }
+  var cbs = document.querySelectorAll('.sub-item:checked');
+  if (!cbs.length) { showToast('❌ 请勾选至少一个项目'); return; }
+
+  // 按分类分组
+  var catMap = {};
+  var cats = _cfg.categories || [];
+  Array.from(cbs).forEach(function(cb){
+    var id = cb.value;
+    var cn = '_uncat';
+    cats.forEach(function(c){
+      if ((c.items || []).indexOf(id) !== -1) cn = c.name;
+    });
+    if (!catMap[cn]) catMap[cn] = [];
+    catMap[cn].push(id);
+  });
+
+  // 构造 groups
+  var groups = [];
+  var catKeys = Object.keys(catMap);
+  catKeys.forEach(function(k){
+    var g = {};
+    if (k !== '_uncat') {
+      g.class_name = k;
+      g.items = catMap[k].join(',');
+    } else {
+      // 未分类的 item 各自独立
+      catMap[k].forEach(function(id){
+        groups.push({ class_name: '', items: id });
+      });
+      return;
+    }
+    groups.push(g);
+  });
+
+  // 如果只有未分类项目，用旧格式（无 groups）
+  var onlyUncat = true;
+  catKeys.forEach(function(k){ if (k !== '_uncat') onlyUncat = false; });
+  if (onlyUncat && catMap['_uncat'] && catMap['_uncat'].length) {
+    api('save_sub', { sub_name: name, sub_items: catMap['_uncat'].join(',') }, function(j){
+      if (j.ok) { showToast('✅ 订阅已生成'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '失败')); }
+    });
+    return;
+  }
+
+  // 混排：有分类 + 未分类，用 groups 格式
+  var catPayload = JSON.stringify(_cfg.categories || []);
+  api('save_sub', { sub_name: name, sub_groups: JSON.stringify(groups), cat_items: catPayload }, function(j){
+    if (j.ok) { showToast('✅ 订阅已生成'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '失败')); }
+  });
+}
+
+function renderSubList(cfg) {
+  var subs = cfg.subscriptions || [];
+  var el = document.getElementById('subList');
+  if (!subs.length) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-muted)">暂无订阅，请先在新建订阅中创建</div>';
+    return;
+  }
+  var baseUrl = window.location.origin;
+  el.innerHTML = subs.map(function(s){
+    var sn = esc(s.name || '');
+    var groups = s.groups;
+    var items = groups || [{class_name: '', items: s.items || []}];
+    var totalCnt = 0;
+    var groupInfo = '';
+    if (groups) {
+      groupInfo = ' <span style="font-size:11px;color:var(--text-muted)">' + groups.map(function(g){
+        var gc = (g.items||[]).length;
+        totalCnt += gc;
+        return esc((g.class_name || '') + '(' + gc + ')');
+      }).join(' ') + '</span>';
+    } else {
+      totalCnt = (s.items||[]).length;
+      if (s.class_name) groupInfo = ' <span style="font-size:11px;color:var(--text-muted)">' + esc(s.class_name + '(' + totalCnt + ')') + '</span>';
+    }
+    var enc = encodeURIComponent(s.name);
+    // 详情展开按钮
+    var detailId = 'sub_det_' + sn.replace(/[^\w]/g, '_');
+    var detailHtml = '';
+    if (groups) {
+      detailHtml = '<div id="' + detailId + '" style="display:none;padding:6px 12px;font-size:12px;color:var(--text-muted)">';
+      groups.forEach(function(g){
+        var gc = (g.items||[]).length;
+        detailHtml += '<div>' + esc(g.class_name || '未分类') + ' (' + gc + '项)</div>';
+      });
+      detailHtml += '</div>';
+    }
+    var html = '<div class="sub-mgmt-row">' +
+      '<span class="sub-name">' + sn + '</span>' +
+      '<span class="sub-count">' + totalCnt + ' 项</span>' + groupInfo +
+      '<button class="btn btn-sm" onclick="toggleSubDetail(\'' + detailId + '\')">详情</button> ' +
+      '<button class="btn btn-sm btn-danger" onclick="deleteSub(\'' + sn.replace(/'/g,"\\'") + '\')">删除</button></div>' +
+      detailHtml +
+      '<div class="sub-result">';
+    // M3U
+    var m3uUrl = baseUrl + '/api?t=sub_m3u&sub=' + enc;
+    html += '<div class="sub-result-link"><span class="sub-label">M3U</span><span class="sub-url">' + m3uUrl + '</span><button class="btn btn-sm" onclick="copyText(\'' + m3uUrl.replace(/'/g,"\\'") + '\')">复制</button></div>';
+    // TVBox
+    var tvUrl = baseUrl + '/api?t=config&sub=' + enc;
+    html += '<div class="sub-result-link"><span class="sub-label">TVBox</span><span class="sub-url">' + tvUrl + '</span><button class="btn btn-sm" onclick="copyText(\'' + tvUrl.replace(/'/g,"\\'") + '\')">复制</button></div>';
+    // UZ
+    var uzUrl = baseUrl + '/api?t=config&uz&sub=' + enc;
+    html += '<div class="sub-result-link"><span class="sub-label">UZ</span><span class="sub-url">' + uzUrl + '</span><button class="btn btn-sm" onclick="copyText(\'' + uzUrl.replace(/'/g,"\\'") + '\')">复制</button></div>';
+    // OK影视
+    var okUrl = baseUrl + '/api?t=sub_ok&sub=' + enc;
+    html += '<div class="sub-result-link"><span class="sub-label">OK影视</span><span class="sub-url">' + okUrl + '</span><button class="btn btn-sm" onclick="copyText(\'' + okUrl.replace(/'/g,"\\'") + '\')">复制</button></div>';
+    // 猫影视
+    var catUrl = baseUrl + '/api?t=sub_catvod&sub=' + enc;
+    html += '<div class="sub-result-link"><span class="sub-label">猫影视</span><span class="sub-url">' + catUrl + '</span><button class="btn btn-sm" onclick="copyText(\'' + catUrl.replace(/'/g,"\\'") + '\')">复制</button></div>';
+    html += '</div>';
+    return html;
+  }).join('');
+}
+
+function toggleSubDetail(id) {
+  var el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function deleteSub(name) {
+  if (!confirm('删除订阅「' + name + '」？')) return;
+  api('delete_sub', { sub_name: name }, function(j){
+    if (j.ok) { showToast('✅ 已删除'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '删除失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Cookie 管理
+// ═════════════════════════════════════════════════
+//  B站 Cookie 显示
+// ═══════════════════════════════════════════════════════════════════
+function renderBiliCookie(cfg) {
+  var cookie = cfg.bili_cookie || cfg.cookie || '';
+  var el = document.getElementById('biliCookieDisplay');
+  if (cookie) {
+    var truncated = cookie.substring(0, 30) + '...';
+    el.innerHTML = '<div style="font-size:13px;color:var(--green);margin-bottom:6px">✅ B站 已登录</div>' +
+      '<div id="biliCookieTrunc" style="padding:6px 10px;background:var(--bg);border-radius:5px;font-size:11px;font-family:var(--mono);color:var(--text-muted);word-break:break-all;text-align:left">' + esc(truncated) + '</div>' +
+      '<div id="biliCookieFull" style="display:none;padding:6px 10px;background:var(--bg);border-radius:5px;font-size:11px;font-family:var(--mono);color:var(--text-muted);word-break:break-all;text-align:left">' + esc(cookie) + '</div>' +
+      '<div style="margin-top:6px;display:flex;gap:6px;justify-content:center">' +
+      '<a class="btn btn-sm btn-link" onclick="toggleBiliCookie()" style="font-size:11px;cursor:pointer">📋 查看完整 Cookie</a>' +
+      '<a class="btn btn-sm btn-link" onclick="clearBiliCookie()" style="font-size:11px;cursor:pointer;color:var(--red)">🗑 清除</a></div>';
+    document.getElementById('biliManualCookie').value = cookie;
+  } else {
+    el.innerHTML = '<div style="height:40px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-muted);background:var(--bg);border-radius:5px">未登录</div>';
+    document.getElementById('biliManualCookie').value = '';
+  }
+}
+
+function toggleBiliCookie() {
+  var f = document.getElementById('biliCookieFull');
+  var t = document.getElementById('biliCookieTrunc');
+  var btn = f.previousElementSibling.previousElementSibling.previousElementSibling.querySelector('a') || document.querySelector('#biliCookieDisplay > div:last-child > a:first-child');
+  if (f.style.display === 'none') {
+    f.style.display = 'block';
+    t.style.display = 'none';
+    document.querySelector('#biliCookieDisplay > div:last-child > a:first-child').textContent = '📋 收起';
+  } else {
+    f.style.display = 'none';
+    t.style.display = 'block';
+    document.querySelector('#biliCookieDisplay > div:last-child > a:first-child').textContent = '📋 查看完整 Cookie';
+  }
+}
+
+function clearBiliCookie() {
+  if (!confirm('确定清除 B站 Cookie 吗？')) return;
+  api('save_cookie', { cookie: '' }, function(j){
+    if (j.ok) { showToast('✅ Cookie 已清除'); loadConfig(); }
+  });
+}
+
+function saveBiliCookie() {
+  var c = document.getElementById('biliManualCookie').value.trim();
+  api('save_cookie', { cookie: c }, function(j){
+    if (j.ok) { showToast('✅ Cookie 已保存'); loadConfig(); }
+    else { showToast('❌ ' + (j.error || '保存失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  A站 Cookie 显示
+// ═══════════════════════════════════════════════════════════════════
+function renderAcfunCookie(cfg) {
+  var cookie = cfg.acfun_cookie || '';
+  var el = document.getElementById('acfunCookieDisplay');
+  if (cookie) {
+    var truncated = cookie.substring(0, 30) + '...';
+    el.innerHTML = '<div style="font-size:13px;color:var(--green);margin-bottom:6px">✅ A站 已登录</div>' +
+      '<div id="acfunCookieTrunc" style="padding:6px 10px;background:var(--bg);border-radius:5px;font-size:11px;font-family:var(--mono);color:var(--text-muted);word-break:break-all;text-align:left">' + esc(truncated) + '</div>' +
+      '<div id="acfunCookieFull" style="display:none;padding:6px 10px;background:var(--bg);border-radius:5px;font-size:11px;font-family:var(--mono);color:var(--text-muted);word-break:break-all;text-align:left">' + esc(cookie) + '</div>' +
+      '<div style="margin-top:6px;display:flex;gap:6px;justify-content:center">' +
+      '<a class="btn btn-sm btn-link" onclick="toggleAcfunCookie()" style="font-size:11px;cursor:pointer">📋 查看完整 Cookie</a>' +
+      '<a class="btn btn-sm btn-link" onclick="clearAcfunCookie()" style="font-size:11px;cursor:pointer;color:var(--red)">🗑 清除</a></div>';
+    document.getElementById('acfunManualCookie').value = cookie;
+  } else {
+    el.innerHTML = '<div style="height:40px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-muted);background:var(--bg);border-radius:5px">未登录</div>';
+    document.getElementById('acfunManualCookie').value = '';
+  }
+}
+
+function toggleAcfunCookie() {
+  var f = document.getElementById('acfunCookieFull');
+  var t = document.getElementById('acfunCookieTrunc');
+  if (f.style.display === 'none') {
+    f.style.display = 'block';
+    t.style.display = 'none';
+    document.querySelector('#acfunCookieDisplay > div:last-child > a:first-child').textContent = '📋 收起';
+  } else {
+    f.style.display = 'none';
+    t.style.display = 'block';
+    document.querySelector('#acfunCookieDisplay > div:last-child > a:first-child').textContent = '📋 查看完整 Cookie';
+  }
+}
+
+function clearAcfunCookie() {
+  if (!confirm('确定清除 A站 Cookie 吗？')) return;
+  fetch('/admin?action=save_acfun_cookie', { method: 'POST', body: new FormData() })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j.ok) { showToast('✅ Cookie 已清除'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '清除失败')); }
+    });
+}
+
+function saveAcfunCookie() {
+  var c = document.getElementById('acfunManualCookie').value.trim();
+  var fd = new FormData();
+  fd.append('cookie', c);
+  fetch('/admin?action=save_acfun_cookie', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j.ok) { showToast('✅ Cookie 已保存'); loadConfig(); }
+      else { showToast('❌ ' + (j.error || '保存失败')); }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  B站 扫码登录
+// ═══════════════════════════════════════════════════════════════════
+var biliQrTimer = null;
+
+function startBiliQRLogin() {
+  document.getElementById('biliQrStartBtn').style.display = 'none';
+  document.getElementById('biliQrCode').style.display = 'block';
+  document.getElementById('biliQrStatus').textContent = '正在生成二维码...';
+  fetch('/admin?action=qrcode_gen', { method: 'POST', body: new FormData() })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.error || !d.url) {
+        showToast('❌ 生成二维码失败: ' + (d.error || ''));
+        stopBiliQRLogin();
+        return;
+      }
+      document.getElementById('biliQrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(d.url);
+      document.getElementById('biliQrStatus').textContent = '请用B站App扫码';
+      var key = d.qrcode_key || d.key;
+      var retry = 0;
+      biliQrTimer = setInterval(function(){
+        if (retry++ > 60) { stopBiliQRLogin(); showToast('❌ 二维码已过期，请重试', false); return; }
+        var fd = new FormData();
+        fd.append('qrcode_key', key);
+        fetch('/admin?action=qrcode_poll&qrcode_key=' + encodeURIComponent(key), { method: 'POST', body: fd })
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            if (d.code === 1) {
+              clearInterval(biliQrTimer); biliQrTimer = null;
+              document.getElementById('biliQrCode').style.display = 'none';
+              document.getElementById('biliQrStartBtn').style.display = 'none';
+              if (d.cookie) {
+                // Save cookie
+                var fd2 = new FormData();
+                fd2.append('cookie', d.cookie);
+                fetch('/admin?action=save_cookie', { method: 'POST', body: fd2 })
+                  .then(function(){ loadConfig(); });
+              }
+              showToast('✅ B站 已登录');
+            } else if (d.code === 0) {
+              document.getElementById('biliQrStatus').textContent = d.message || '等待确认...';
+            } else if (d.code === 86090) {
+              document.getElementById('biliQrStatus').textContent = '已扫码，请在手机上确认...';
+            } else if (d.code === -2) {
+              clearInterval(biliQrTimer); biliQrTimer = null;
+              document.getElementById('biliQrStatus').textContent = '❌ 二维码已过期';
+              showToast('❌ 二维码已过期');
+            } else {
+              // Keep waiting
+            }
+          }).catch(function(){});
+      }, 2000);
+    })
+    .catch(function(){ showToast('❌ 请求失败'); stopBiliQRLogin(); });
+}
+
+function stopBiliQRLogin() {
+  if (biliQrTimer) { clearInterval(biliQrTimer); biliQrTimer = null; }
+  document.getElementById('biliQrStartBtn').style.display = '';
+  document.getElementById('biliQrCode').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  A站 扫码登录
+// ═══════════════════════════════════════════════════════════════════
+var acfunQrTimer = null;
+var acfunQrRetry = 0;
+
+function startAcfunQRLogin() {
+  acfunQrRetry = 0;
+  document.getElementById('acfunQrStartBtn').style.display = 'none';
+  document.getElementById('acfunQrCode').style.display = '';
+  document.getElementById('acfunQrStatus').textContent = '正在生成二维码...';
+  
+  fetch('/admin?action=acfun_qrcode_gen', { method: 'POST', body: new FormData() })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.error) { showToast('❌ ' + d.error); stopAcfunQRLogin(); return; }
+      document.getElementById('acfunQrImg').src = 'data:image/png;base64,' + d.image_data;
+      document.getElementById('acfunQrCode').style.display = '';
+      document.getElementById('acfunQrStatus').textContent = '请用A站App扫码';
+      // 顺序轮询，每次等上一次完成后再发下一次
+      acfunQRPollLoop(d.qrLoginToken, d.qrLoginSignature);
+    })
+    .catch(function(e){ showToast('❌ 请求失败: ' + e); stopAcfunQRLogin(); });
+}
+
+function acfunQRPollLoop(token, sig) {
+  if (acfunQrTimer) return; // 已经停止
+  acfunQRPoll(token, sig, function(shouldContinue){
+    if (!shouldContinue) return;
+    // 等1秒再发下一次
+    setTimeout(function(){ acfunQRPollLoop(token, sig); }, 1000);
+  });
+}
+
+function acfunQRPoll(token, sig, callback) {
+  if (acfunQrRetry++ > 60) { stopAcfunQRLogin(); showToast('❌ 二维码已过期，请重试', false); return; }
+  fetch('/admin?action=acfun_qrcode_poll&qrLoginToken=' + encodeURIComponent(token) + '&qrLoginSignature=' + encodeURIComponent(sig), { method: 'POST', body: new FormData() })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.code === 1) {
+        document.getElementById('acfunQrStatus').textContent = '✅ 登录成功';
+        document.getElementById('acfunQrStatus').style.color = 'var(--accent)';
+        showToast('✅ A站扫码登录成功');
+        stopAcfunQRLogin();
+        loadConfig();
+        if (callback) callback(false);
+        return;
+      } else if (d.code === -2) {
+        stopAcfunQRLogin();
+        showToast('❌ 二维码已过期，请重试', false);
+        if (callback) callback(false);
+        return;
+      } else if (d.code === 0 && d.message) {
+        document.getElementById('acfunQrStatus').textContent = '📱 ' + d.message;
+      } else if (d.code === 0 || d.code === -5) {
+        // 等待扫码中
+        if (document.getElementById('acfunQrStatus').textContent === '请用A站App扫码') {
+          // still waiting for scan
+        }
+      }
+      // -5 (超时/等待中) 或其他状态 → 继续轮询
+      if (callback) callback(true);
+    })
+    .catch(function(){
+      // 网络错误 → 继续轮询
+      if (callback) callback(true);
+    });
+}
+
+function stopAcfunQRLogin() {
+  if (acfunQrTimer) { clearInterval(acfunQrTimer); acfunQrTimer = null; }
+  document.getElementById('acfunQrStartBtn').style.display = '';
+  document.getElementById('acfunQrCode').style.display = 'none';
+  document.getElementById('acfunQrStatus').style.color = 'var(--text-muted)';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  缓存管理
+// ═══════════════════════════════════════════════════════════════════
+function clearCache() {
+  if (!confirm('确定清除所有缓存吗？')) return;
+  api('clear_cache', {}, function(j){
+    if (j.ok) { showToast('✅ 已清除 ' + (j.count || '') + ' 个缓存文件'); }
+    else { showToast('❌ ' + (j.error || '清除失败')); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  定时刷新
+// ═══════════════════════════════════════════════════════════════════
+
+function toggleSchedMode() {
+  var mode = document.getElementById('schedMode').value;
+  document.getElementById('schedDailyOpt').style.display = mode === 'daily' ? 'flex' : 'none';
+  document.getElementById('schedIntervalOpt').style.display = mode === 'interval' ? 'flex' : 'none';
+}
+
+function loadSchedule() {
+  fetch('/admin?action=load_schedule', { method: 'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(s){
+      document.getElementById('schedEnabled').checked = s.enabled !== false;
+      document.getElementById('schedMode').value = s.mode || 'daily';
+      document.getElementById('schedTime').value = s.time || '04:00';
+      document.getElementById('schedInterval').value = s.interval_hours || 4;
+      toggleSchedMode();
+
+      var statusEl = document.getElementById('schedStatus');
+      statusEl.textContent = s.enabled ? '🟢 运行中' : '🔴 已暂停';
+
+      var lastRunEl = document.getElementById('schedLastRun');
+      if (s.last_run) {
+        var d = new Date(s.last_run);
+        var pad = function(n){ return n < 10 ? '0' + n : n; };
+        lastRunEl.textContent = '⏱ 上次执行: ' + d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      } else {
+        lastRunEl.textContent = '⏱ 尚未执行';
+      }
+
+      var lastStatusEl = document.getElementById('schedLastStatus');
+      lastStatusEl.textContent = s.last_status || '';
+    })
+    .catch(function(){ });
+}
+
+function saveSchedule() {
+  var fd = new FormData();
+  fd.append('sched_enabled', document.getElementById('schedEnabled').checked ? 'true' : 'false');
+  fd.append('sched_mode', document.getElementById('schedMode').value);
+  fd.append('sched_time', document.getElementById('schedTime').value);
+  fd.append('sched_interval', document.getElementById('schedInterval').value);
+
+  fetch('/admin?action=save_schedule', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j.ok) {
+        showToast('✅ 定时配置已保存');
+        loadSchedule();
+      } else {
+        showToast('❌ ' + (j.error || '保存失败'));
+      }
+    })
+    .catch(function(){ showToast('❌ 网络错误'); });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  初始化
+// ═══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function(){
+  loadConfig();
+  loadSchedule();
+  // 初始标签名
+  document.title = 'Bilibili - AB Player';
+});
+</script>
+</body>
+</html>

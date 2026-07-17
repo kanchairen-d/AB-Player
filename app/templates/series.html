@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>{{ title }} - AB Player</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#e8ecf0;--card-bg:rgba(255,255,255,0.95);--card-bd:rgba(208,215,222,0.6);--text:#1f2328;--text-muted:#57606a;--accent:#0969da;--accent-hover:#0550ae;--cover-bg:#d0d7de;--tag-bg:rgba(9,105,218,0.12);--tag-color:#0969da;--play-bg:#0969da;--hover-bg:rgba(0,0,0,0.04);--hover-bd:#0969da;--radius:10px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+[data-theme="dark"]{--bg:#0d1117;--card-bg:rgba(22,27,34,0.93);--card-bd:rgba(48,54,61,0.6);--text:#e6edf3;--text-muted:#8b949e;--accent:#58a6ff;--accent-hover:#79c0ff;--cover-bg:#1f2937;--tag-bg:rgba(88,166,255,0.15);--tag-color:#58a6ff;--play-bg:#58a6ff;--hover-bg:rgba(30,36,44,0.95);--hover-bd:#58a6ff}
+body{font-family:var(--font);background:var(--bg);color:var(--text);padding:16px;min-height:100vh}
+.top-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.top-bar h1{font-size:18px;font-weight:600}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--tag-bg);color:var(--tag-color);font-weight:500}
+.count{color:var(--text-muted);font-size:13px}
+.v-list{display:flex;flex-direction:column;gap:6px}
+.v-item{display:flex;gap:10px;background:var(--card-bg);border:1px solid var(--card-bd);border-radius:10px;padding:8px;text-decoration:none;transition:background .15s;color:inherit}
+.v-item:hover{background:var(--hover-bg);border-color:var(--hover-bd)}
+.v-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.v-title{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px}
+.v-meta{font-size:12px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap}
+.play-btn{display:inline-block;background:var(--play-bg);color:#fff;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:500;align-self:center;flex-shrink:0;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <h1>{{ title }}</h1>
+  <span class="tag">{{ tag }}</span>
+  <span class="count">{{ videos|length }} 个视频</span>
+</div>
+<div class="v-list">
+{% for v in videos %}
+{% set vid = v.get('bvid', v.get('id', '')) %}
+{% set vt = v.get('title', '未知') %}
+{% set dur = v.get('duration', 0) | int %}
+{% set min = "%02d" | format(dur // 60) %}
+{% set sec = "%02d" | format(dur % 60) %}
+{% set pubdate = v.get('pubdate', v.get('createTime', 0)) %}
+{% set ctime = '' %}
+{% if pubdate %}
+  {% if pubdate > 10000000000 %}
+    {% set ctime = (pubdate / 1000) | int | timestamp_to_date %}
+  {% else %}
+    {% set ctime = pubdate | int | timestamp_to_date %}
+  {% endif %}
+{% endif %}
+{% set play_url = '/bili?id=' ~ vid if platform == 'bili' else '/acfun?id=' ~ vid %}
+{% if platform == 'bili' and source_id and series_mid %}
+  {% set play_url = play_url ~ '&series=' ~ source_id ~ '&mid=' ~ series_mid %}
+{% endif %}
+<a class="v-item" href="{{ play_url }}" target="_blank">
+  <div class="v-info">
+    <div class="v-title">{{ vt }}</div>
+    <div class="v-meta">
+      {% if dur > 0 %}<span>⏱ {{ min }}:{{ sec }}</span>{% endif %}
+      {% if ctime and ctime != '1970-01-01' %}<span>📅 {{ ctime }}</span>{% endif %}
+    </div>
+  </div>
+  <span class="play-btn">▶ 播放</span>
+</a>
+{% endfor %}
+</div>
+<script>
+(function(){
+  var html = document.documentElement;
+  var curr = localStorage.getItem('ab2-theme') || 'light';
+  html.setAttribute('data-theme', curr);
+})();
+</script>
+</body>
+</html>

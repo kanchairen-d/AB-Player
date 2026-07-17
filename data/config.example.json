@@ -1,0 +1,20 @@
+{
+  "bili_cookie": "",
+  "acfun_cookie": "",
+  "bili_ups": [],
+  "bili_series": [],
+  "bili_rooms": [],
+  "bili_videos": [],
+  "acfun_ups": [],
+  "acfun_albums": [],
+  "acfun_videos": [],
+  "subscriptions": [],
+  "categories": [],
+  "live_list": [],
+  "schedule": {
+    "enabled": false,
+    "mode": "daily",
+    "time": "04:00",
+    "interval_hours": 4
+  }
+}

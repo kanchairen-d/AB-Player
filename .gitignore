@@ -1,0 +1,12 @@
+# 数据文件（含 Cookie、订阅等隐私）
+data/*
+!data/config.example.json
+!data/.gitkeep
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 系统文件
+.DS_Store
+Thumbs.db

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>{{ title }} - AB Player</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#e8ecf0;--card-bg:rgba(255,255,255,0.95);--card-bd:rgba(208,215,222,0.6);--text:#1f2328;--text-muted:#57606a;--accent:#0969da;--accent-hover:#0550ae;--h1-color:#1f2328;--num-color:#888;--dur-color:#888;--player-bg:#000;--radius:10px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--live-on:#00c853;--live-off:#ff5252}
+[data-theme="dark"]{--bg:#1a1a2e;--card-bg:#16213e;--card-bd:rgba(48,54,61,0.6);--text:#e0e0e0;--text-muted:#888;--accent:#58a6ff;--accent-hover:#79c0ff;--h1-color:#e0e0e0;--num-color:#888;--dur-color:#888;--player-bg:#000;--live-on:#00c853;--live-off:#ff5252}
+body{font-family:var(--font);background:var(--bg);color:var(--text);padding:0;min-height:100vh}
+.top-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;flex-wrap:wrap;border-bottom:1px solid var(--card-bd)}
+.top-bar h1{font-size:16px;font-weight:600;color:var(--h1-color);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-bar .uname{font-size:13px;color:var(--text-muted)}
+.top-bar .status{font-size:11px;padding:2px 10px;border-radius:10px;font-weight:500}
+.top-bar .status.on{background:rgba(0,200,83,0.15);color:var(--live-on)}
+.top-bar .status.off{background:rgba(255,82,82,0.15);color:var(--live-off)}
+.player-wrap{background:var(--player-bg);width:100%;position:relative}
+.player-wrap video{width:100%;max-height:65vh;display:block;margin:0 auto;background:#000}
+.cover-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);color:var(--text-muted)}
+.cover-placeholder img{width:60%;max-height:60%;object-fit:contain;border-radius:8px;opacity:0.5}
+.cover-placeholder .msg{font-size:14px}
+.live-info{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 16px;max-width:640px;margin:0 auto}
+.live-info .stat{background:var(--card-bg);border:1px solid var(--card-bd);border-radius:8px;padding:10px;text-align:center}
+.live-info .stat .num{font-size:18px;font-weight:600;color:var(--accent)}
+.live-info .stat .lbl{font-size:11px;color:var(--text-muted);margin-top:2px}
+.ep-list{padding:12px 16px;max-width:640px;margin:0 auto}
+.ep-list h2{font-size:13px;color:var(--text-muted);margin-bottom:10px}
+.video-card{background:var(--card-bg);border:1px solid var(--card-bd);border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;gap:10px;align-items:center;cursor:pointer;transition:all .15s}
+.video-card:hover{background:var(--card-hover)}
+.video-card.active{background:var(--active-bg);color:var(--active-text);border-color:var(--active-bg)}
+.video-card .num{width:28px;text-align:center;font-weight:600;font-size:13px;color:var(--num-color);flex-shrink:0}
+.video-card.active .num{color:var(--active-text)}
+.video-card .title{flex:1;font-size:13px}
+</style>
+</head>
+<body>
+<div class="top-bar">
+  <h1>{{ title }}</h1>
+  {% if platform == 'bili_live' %}
+  <span class="uname">{{ live_uname }}</span>
+  <span class="status {% if is_live %}on{% else %}off{% endif %}">{% if is_live %}● 直播中{% else %}未开播{% endif %}</span>
+  {% endif %}
+</div>
+<div class="player-wrap">
+  {% if platform == 'bili_live' and not is_live %}
+  <div class="cover-placeholder">
+    {% if live_cover %}<img src="{{ live_cover }}" alt="">{% endif %}
+    <span class="msg">{% if live_stream_url %}等待开播...{% else %}无法获取直播流{% endif %}</span>
+  </div>
+  {% endif %}
+  <video id="player" controls autoplay playsinline style="width:100%;max-height:65vh;background:#000"></video>
+</div>
+{% if platform == 'bili_live' %}
+<div class="live-info">
+  <div class="stat"><div class="num">{{ live_online }}</div><div class="lbl">在线观众</div></div>
+  <div class="stat"><div class="num">{{ live_attention }}</div><div class="lbl">粉丝</div></div>
+  <div class="stat"><div class="num">{{ room_id }}</div><div class="lbl">房间号</div></div>
+</div>
+{% endif %}
+{% if episodes %}
+<div class="ep-list">
+  <h2>共 {{ episodes|length }} 集</h2>
+  {% for ep in episodes %}
+  <div class="video-card {% if loop.index0 == 0 %}active{% endif %}" data-page="{{ ep.id }}">
+    <span class="num">{{ loop.index }}</span>
+    <span class="title">{{ ep.title }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+<script src="/static/mpegts.min.js"></script>
+<script>
+(function(){
+  var player = document.getElementById('player');
+  var contentId = '{{ content_id }}';
+  var platform = '{{ platform }}';
+
+  // bili_live: 用 mpegts.js 播放 FLV 直播流
+  if (platform === 'bili_live') {
+    var isLive = '{{ is_live }}' === 'True';
+    if (!isLive) { player.style.display = 'none'; }
+    var liveUrl = '{{ live_stream_url }}';
+    if (liveUrl && isLive && typeof mpegts !== 'undefined' && mpegts.isSupported()) {
+      var mpegtsPlayer = mpegts.createPlayer({
+        type: 'flv',
+        url: liveUrl,
+        isLive: true,
+      });
+      mpegtsPlayer.attachMediaElement(player);
+      mpegtsPlayer.load();
+      mpegtsPlayer.play();
+    } else if (liveUrl && isLive) {
+      player.src = liveUrl;
+      player.play().catch(function(){});
+    }
+    return;
+  }
+
+  function loadEpisode(page) {
+    document.querySelectorAll('.video-card').forEach(function(c){ c.classList.remove('active'); });
+    var card = document.querySelector('.video-card[data-page="' + page + '"]');
+    if (card) card.classList.add('active');
+
+    if (platform === 'bili') {
+      player.src = '/bili?id=' + contentId + '&p=' + page + '&proxy=1';
+    } else if (platform === 'acfun') {
+      player.src = '/acfun?id=' + contentId + '&play=1&cid=' + page;
+    }
+  }
+
+  document.querySelectorAll('.video-card').forEach(function(card){
+    card.addEventListener('click', function(){
+      loadEpisode(this.getAttribute('data-page'));
+    });
+  });
+
+  var firstCard = document.querySelector('.video-card.active');
+  if (firstCard) {
+    if (platform === 'bili') {
+      player.src = '/bili?id=' + contentId + '&p=' + firstCard.getAttribute('data-page') + '&proxy=1';
+    } else if (platform === 'acfun') {
+      player.src = '/acfun?id=' + contentId + '&play=1&cid=' + firstCard.getAttribute('data-page');
+    }
+    player.play().catch(function(){});
+  }
+
+  // 跟随主题
+  var html = document.documentElement;
+  var curr = localStorage.getItem('ab2-theme') || 'light';
+  html.setAttribute('data-theme', curr);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+
+services:
+  ab2-py:
+    build: .
+    container_name: ab2-py
+    ports:
+      - "5081:8080"
+    volumes:
+      - ./data:/app/data
+      - ./app/templates:/app/app/templates
+      - ./app/static:/app/app/static
+      - ./app/api.py:/app/app/api.py
+      - ./app/acfun.py:/app/app/acfun.py
+      - ./app/bilibili.py:/app/app/bilibili.py
+      - ./app/config.py:/app/app/config.py
+      - ./app/m3u.py:/app/app/m3u.py
+      - ./app/player.py:/app/app/player.py
+      - ./app/admin.py:/app/app/admin.py
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
