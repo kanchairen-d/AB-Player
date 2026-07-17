@@ -666,7 +666,8 @@ async def _play_acfun_stream(content_id: str, target_cid: str, request: Request)
 
     resp_headers = {
         "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "public, max-age=86400",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
     }
     return StreamingResponse(
         _stream(),
