@@ -345,9 +345,9 @@ a:hover{text-decoration:underline}
   <section class="page" id="pg-sub">
     <h2 class="pg-title">📋 订阅链接</h2>
     <div class="stats cols-3" id="subStats">
-      <div class="stat"><span class="stat-num" id="subStatVod">0</span><span class="stat-lbl">点播订阅</span></div>
-      <div class="stat"><span class="stat-num" id="subStatLive">0</span><span class="stat-lbl">直播订阅</span></div>
-      <div class="stat"><span class="stat-num" id="subStatTotal">0</span><span class="stat-lbl">总订阅数</span></div>
+      <div class="stat"><span class="stat-num" id="subStatCat">0</span><span class="stat-lbl">分类项目</span></div>
+      <div class="stat"><span class="stat-num" id="subStatUncat">0</span><span class="stat-lbl">未分类项目</span></div>
+      <div class="stat"><span class="stat-num" id="subStatTotal">0</span><span class="stat-lbl">总订阅</span></div>
     </div>
 
     <!-- 新建订阅 -->
@@ -647,14 +647,27 @@ function renderStats(cfg) {
   document.getElementById('acfunUpTag').textContent = acfunUps.length;
   document.getElementById('acfunVideoTag').textContent = acfunVideos.length;
 
-  var vodCount = 0, liveCount = 0;
-  subs.forEach(function(s){
-    var cnt = (s.items || []).length;
-    if ((s.type || 'vod') === 'live') liveCount += cnt;
-    else vodCount += cnt;
+  var catCount = 0, uncatCount = 0;
+  var cats = cfg.categories || [];
+  var catItemMap = {};
+  cats.forEach(function(c){ (c.items || []).forEach(function(id){ catItemMap[id] = true; }); });
+
+  // 收集所有订阅可用的项目（与 renderSubItems 一致）
+  var allItems = [];
+  (biliSeries || []).forEach(function(s){ allItems.push('series_' + (s.series_id || s.id)); });
+  (biliUps || []).forEach(function(u){ allItems.push('up_' + u.mid); });
+  (biliVideos || []).forEach(function(v){ allItems.push('video_' + v.id); });
+  (biliRooms || []).forEach(function(r){ allItems.push('room_' + r.room_id); });
+  (acfunAlbums || []).forEach(function(a){ allItems.push('acfun_album_' + a.id); });
+  (acfunUps || []).forEach(function(u){ allItems.push('acfun_up_' + (u.uid || u.mid)); });
+  (acfunVideos || []).forEach(function(v){ allItems.push('acfun_video_' + v.id); });
+
+  allItems.forEach(function(id){
+    if (catItemMap[id]) catCount++;
+    else uncatCount++;
   });
-  document.getElementById('subStatVod').textContent = vodCount;
-  document.getElementById('subStatLive').textContent = liveCount;
+  document.getElementById('subStatCat').textContent = catCount;
+  document.getElementById('subStatUncat').textContent = uncatCount;
   document.getElementById('subStatTotal').textContent = subs.length;
 }
 
