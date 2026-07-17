@@ -1,6 +1,6 @@
 """Bilibili API (httpx 直调 + Wbi 签名)"""
 
-import hashlib, json, time, urllib.parse
+import asyncio, hashlib, json, time, urllib.parse
 from functools import reduce
 from typing import Optional
 
@@ -273,11 +273,18 @@ async def up_videos(mid: int, pn: int = 1, ps: int = 30, force: bool = False) ->
     all_videos = []
     total = 0
     up_name = ""
+    all_pages_ok = True
 
     for page in range(1, 501):
-        raw = await _req("/x/space/wbi/arc/search",
-                         {"mid": mid, "pn": page, "ps": ps}, wbi=True)
+        raw = None
+        for attempt in range(3):
+            raw = await _req("/x/space/wbi/arc/search",
+                             {"mid": mid, "pn": page, "ps": ps}, wbi=True)
+            if raw:
+                break
+            await asyncio.sleep(1)
         if not raw:
+            all_pages_ok = False
             break
 
         # 兼容 B站 API 多种返回格式
@@ -331,7 +338,8 @@ async def up_videos(mid: int, pn: int = 1, ps: int = 30, force: bool = False) ->
     # 预拉多P信息（只拉标题有分P特征），缓存进列表数据
     await _prefetch_pages(all_videos)
 
-    cache_set(key, json.dumps(result, ensure_ascii=False), 3600)
+    if all_pages_ok:
+        cache_set(key, json.dumps(result, ensure_ascii=False), 3600)
     return result
 
 
