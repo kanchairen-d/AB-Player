@@ -13,12 +13,13 @@ _BILI_CDN_CACHE = {}  # key: bvid_p -> {"cdn_url": str, "cid": int, "expires_at"
 
 
 def build_base_url(request: Request) -> str:
+    proto = request.headers.get("X-Forwarded-Proto", "http")
     forwarded = request.headers.get("X-Forwarded-Host")
     if forwarded:
-        return f"http://{forwarded}"
+        return f"{proto}://{forwarded}"
     host = request.headers.get("host", "")
     if host:
-        return f"http://{host}"
+        return f"{proto}://{host}"
     return str(request.base_url).rstrip("/")
 
 
@@ -779,7 +780,11 @@ async function getPlayerContent(flag, id) {{
             try:
                 resp = await cli.get(
                     internal_url,
-                    headers={"Host": orig_host},
+                    headers={
+                        "Host": orig_host,
+                        "X-Forwarded-Proto": request.headers.get("X-Forwarded-Proto", "http"),
+                        "X-Forwarded-Host": request.headers.get("X-Forwarded-Host", orig_host),
+                    },
                     timeout=60.0,
                     follow_redirects=False,
                 )
@@ -794,25 +799,15 @@ async function getPlayerContent(flag, id) {{
     @router.get("/api/spider/{sub_name}")
     async def api_spider_route(sub_name: str, request: Request):
         """UZ spider 路径式 sub 传递（防 APP 丢掉 query 参数）"""
-        import httpx
-        from fastapi.responses import Response
-        orig_host = request.headers.get("host", "127.0.0.1:5081")
-        internal_url = f"http://127.0.0.1:8080/api?t=spider&sub={sub_name}"
-        async with httpx.AsyncClient() as cli:
-            try:
-                resp = await cli.get(
-                    internal_url,
-                    headers={"Host": orig_host},
-                    timeout=60.0,
-                    follow_redirects=False,
-                )
-                return Response(
-                    content=resp.content,
-                    media_type=resp.headers.get("content-type", "application/javascript"),
-                    status_code=resp.status_code,
-                )
-            except Exception as e:
-                return JSONResponse({"error": f"内部代理失败: {str(e)}"}, status_code=502)
+        cfg = load_config()
+        # 把 sub_name 注入到 request query_params 中，复用 _handle_uz_spider
+        from urllib.parse import urlencode
+        scope = dict(request.scope)
+        params = dict(request.query_params)
+        params["sub"] = sub_name
+        scope["query_string"] = urlencode(params).encode()
+        new_req = Request(scope)
+        return await _handle_uz_spider(new_req, cfg)
 
     app.include_router(router)
 

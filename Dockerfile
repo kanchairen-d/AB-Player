@@ -55,8 +55,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY data/ ./data/
 
-# Copy compiled JAR(s) from builder
-COPY --from=java-builder /compile/abplayer*.jar /app/app/static/
+# 使用项目目录的 DEX JAR（含 native 库）
+# 删除：COPY --from=java-builder /compile/abplayer*.jar /app/app/static/
 
 EXPOSE 8080
 
