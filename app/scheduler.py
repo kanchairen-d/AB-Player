@@ -295,4 +295,82 @@ def _do_refresh(cfg: dict):
     cfg["last_status"] = status
     save_schedule(cfg)
     print(f"[Scheduler] {status}")
+
+    # ═══ 推送通知 ═══
+    try:
+        _send_notification("AB-Player 自动刷新", parts, total_series, total_ups, total_videos, total_rooms,
+                           total_albums, total_acfun_ups, total_acfun_videos, errors)
+    except Exception as e:
+        print(f"[Scheduler] 通知发送失败: {e}")
+
     loop.close()
+
+
+def _send_notification(title, parts, total_series, total_ups, total_videos, total_rooms,
+                       total_albums, total_acfun_ups, total_acfun_videos, errors):
+    """推送通知到 WxPusher / PushPlus"""
+    from .config import load_config as load_app_config
+    cfg = load_app_config()
+    ewxp = cfg.get("ENABLE_WXPUSHER", False)
+    epp = cfg.get("ENABLE_PUSHPLUS", False)
+    if not ewxp and not epp:
+        return
+
+    # 构建通知内容
+    content_lines = []
+    if parts:
+        content_lines.append("📺 B站相关：")
+        if total_series:
+            content_lines.append(f"  • 合集: {total_series} 个")
+        if total_ups:
+            content_lines.append(f"  • UP主: {total_ups} 个")
+        if total_videos:
+            content_lines.append(f"  • 单视频: {total_videos} 个")
+        if total_rooms:
+            content_lines.append(f"  • 直播: {total_rooms} 个")
+        content_lines.append("🎬 A站相关：")
+        if total_albums:
+            content_lines.append(f"  • 合辑: {total_albums} 个")
+        if total_acfun_ups:
+            content_lines.append(f"  • UP主: {total_acfun_ups} 个")
+        if total_acfun_videos:
+            content_lines.append(f"  • 单视频: {total_acfun_videos} 个")
+    else:
+        content_lines.append("📭 无内容更新")
+
+    if errors:
+        content_lines.append(f"")
+        content_lines.append(f"⚠️ {len(errors)} 个错误")
+        for e in errors[:5]:
+            content_lines.append(f"  • {e}")
+        if len(errors) > 5:
+            content_lines.append(f"  ...还有 {len(errors)-5} 个错误")
+
+    content = "\n".join(content_lines)
+
+    import httpx
+    # WxPusher
+    if ewxp and cfg.get("WXPUSHER_APP_TOKEN"):
+        try:
+            payload = {
+                "appToken": cfg["WXPUSHER_APP_TOKEN"],
+                "content": content,
+                "summary": title,
+                "uids": cfg.get("WXPUSHER_UIDS", []),
+            }
+            httpx.post(
+                cfg.get("WXPUSHER_API_URL", "https://wxpusher.zjiecode.com/api/send/message"),
+                json=payload, timeout=10
+            )
+        except Exception:
+            pass
+    # PushPlus
+    if epp and cfg.get("PUSHPLUS_TOKEN"):
+        try:
+            httpx.post(
+                "https://www.pushplus.plus/send",
+                json={"token": cfg["PUSHPLUS_TOKEN"], "title": title, "content": content, "template": "text"},
+                timeout=10
+            )
+        except Exception:
+            pass

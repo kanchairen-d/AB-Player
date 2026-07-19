@@ -686,6 +686,32 @@ def register(app):
             return JSONResponse(cfg)
 
         # ════════════════════════════════════════════════
+        # 推送通知配置
+        # ════════════════════════════════════════════════
+
+        if action == "load_notify":
+            return JSONResponse({
+                "ENABLE_WXPUSHER": cfg.get("ENABLE_WXPUSHER", False),
+                "WXPUSHER_APP_TOKEN": cfg.get("WXPUSHER_APP_TOKEN", ""),
+                "WXPUSHER_UIDS": cfg.get("WXPUSHER_UIDS", []),
+                "WXPUSHER_API_URL": cfg.get("WXPUSHER_API_URL", "https://wxpusher.zjiecode.com/api/send/message"),
+                "ENABLE_PUSHPLUS": cfg.get("ENABLE_PUSHPLUS", False),
+                "PUSHPLUS_TOKEN": cfg.get("PUSHPLUS_TOKEN", ""),
+            })
+
+        if action == "save_notify":
+            form = await request.form()
+            cfg["ENABLE_WXPUSHER"] = form.get("wx_enabled", "false").lower() == "true"
+            cfg["WXPUSHER_APP_TOKEN"] = form.get("wx_token", "")
+            uid_raw = form.get("wx_uids", "")
+            cfg["WXPUSHER_UIDS"] = [u.strip() for u in uid_raw.split(",") if u.strip()] if uid_raw else []
+            cfg["WXPUSHER_API_URL"] = form.get("wx_api_url", "https://wxpusher.zjiecode.com/api/send/message")
+            cfg["ENABLE_PUSHPLUS"] = form.get("pp_enabled", "false").lower() == "true"
+            cfg["PUSHPLUS_TOKEN"] = form.get("pp_token", "")
+            save_config(cfg)
+            return JSONResponse({"ok": True})
+
+        # ════════════════════════════════════════════════
         # 调度器配置
         # ════════════════════════════════════════════════
 

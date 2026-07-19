@@ -138,6 +138,14 @@ a:hover{text-decoration:underline}
 .f-input{background:var(--bg);border:1px solid var(--glass-nav-bd);color:var(--text);padding:7px 10px;border-radius:5px;font-size:13px;font-family:var(--font);outline:none;min-width:0}
 .f-input:focus{border-color:var(--accent)}
 
+/* ---- Toggle Switch ---- */
+.toggle{display:inline-flex;align-items:center;cursor:pointer;user-select:none}
+.toggle input{display:none}
+.toggle-track{position:relative;width:36px;height:20px;background:var(--text-dim);border-radius:10px;transition:background .2s}
+.toggle-track::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:transform .2s}
+.toggle input:checked + .toggle-track{background:var(--accent)}
+.toggle input:checked + .toggle-track::after{transform:translateX(16px)}
+
 /* ---- Loading / Empty ---- */
 .loading{text-align:center;padding:20px 0;color:var(--text-dim);font-size:13px}
 
@@ -454,6 +462,52 @@ a:hover{text-decoration:underline}
       <div style="display:flex;gap:12px;align-items:center;margin-top:6px;font-size:12px;color:var(--text-muted)">
         <span id="schedLastRun"></span>
         <span id="schedLastStatus"></span>
+      </div>
+    </div>
+    <!-- 推送通知 -->
+    <div class="card" style="margin-top:14px">
+      <div class="card-h">🔔 推送通知 <span class="tag" id="notifyStatus">未配置</span></div>
+      <div style="margin-top:10px;font-size:13px;color:var(--text-muted);padding-bottom:6px">定时刷新完成后自动推送统计信息</div>
+      <div style="margin-top:6px">
+        <div style="background:var(--glass-nav);border:1px solid var(--glass-nav-bd);border-radius:var(--radius-sm);padding:18px">
+          <!-- WxPusher -->
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <b style="color:var(--text);font-size:14px">WxPusher 推送</b>
+            <label class="toggle"><input type="checkbox" id="wxEnabled" onchange="toggleNotify()"><span class="toggle-track"></span></label>
+          </div>
+          <div id="wxFields" style="display:none;margin-top:14px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <input type="password" id="wxToken" class="f-input" style="width:100%;padding:8px 10px" placeholder="WxPusher APP Token">
+              <input type="password" id="wxUids" class="f-input" style="width:100%;padding:8px 10px" placeholder="UID（多个用英文逗号分隔）">
+            </div>
+          </div>
+          <!-- 分割线 -->
+          <div style="height:1px;background:var(--glass-nav-bd);margin:16px 0"></div>
+          <!-- PushPlus -->
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <b style="color:var(--text);font-size:14px">PushPlus 推送</b>
+            <label class="toggle"><input type="checkbox" id="ppEnabled" onchange="toggleNotify()"><span class="toggle-track"></span></label>
+          </div>
+          <div id="ppFields" style="display:none;margin-top:14px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <input type="password" id="ppToken" class="f-input" style="width:100%;padding:8px 10px" placeholder="PushPlus Token">
+            </div>
+          </div>
+        </div>
+        <details class="rounded-lg p-4 mt-4 cursor-pointer" style="background:var(--glass-nav);border:1px solid var(--glass-nav-bd)">
+          <summary class="text-xs font-medium" style="color:var(--text-muted)">📖 推送通知配置说明</summary>
+          <div class="mt-3" style="color:var(--text-muted);line-height:1.8;font-size:13px">
+            <div><b style="color:var(--text)">WxPusher：</b></div>
+            <div style="padding-left:4px">APP Token 在 <a href="https://wxpusher.zjiecode.com/" target="_blank" style="color:var(--accent)">wxpusher.zjiecode.com</a> 创建应用获取</div>
+            <div style="padding-left:4px">下载 wxpusher App 登录并获取 UID</div>
+            <div class="mt-2"><b style="color:var(--text)">PushPlus：</b></div>
+            <div style="padding-left:4px">Token 在 <a href="https://www.pushplus.plus/" target="_blank" style="color:var(--accent)">pushplus.plus</a> 扫码登录后获取，无需 UID</div>
+          </div>
+        </details>
+        <div style="margin-top:18px;display:flex;align-items:center;gap:12px">
+          <button class="btn btn-primary" onclick="saveNotify()" style="padding:8px 20px;font-size:13px">💾 保存通知配置</button>
+          <span id="notifyMsg" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
       </div>
     </div>
     <!-- 缓存管理 -->
@@ -1831,11 +1885,64 @@ function saveSchedule() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  推送通知
+// ═══════════════════════════════════════════════════════════════════
+
+function toggleNotify() {
+  document.getElementById('wxFields').style.display = document.getElementById('wxEnabled').checked ? 'block' : 'none';
+  document.getElementById('ppFields').style.display = document.getElementById('ppEnabled').checked ? 'block' : 'none';
+}
+
+function loadNotify() {
+  fetch('/admin?action=load_notify', { method: 'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(n){
+      document.getElementById('wxEnabled').checked = n.ENABLE_WXPUSHER === true;
+      document.getElementById('wxToken').value = n.WXPUSHER_APP_TOKEN || '';
+      var uids = n.WXPUSHER_UIDS || [];
+      document.getElementById('wxUids').value = uids.join(',');
+      document.getElementById('ppEnabled').checked = n.ENABLE_PUSHPLUS === true;
+      document.getElementById('ppToken').value = n.PUSHPLUS_TOKEN || '';
+      toggleNotify();
+
+      var st = document.getElementById('notifyStatus');
+      if (n.ENABLE_WXPUSHER || n.ENABLE_PUSHPLUS) {
+        st.textContent = '🟢 已配置';
+      } else {
+        st.textContent = '🔴 未配置';
+      }
+    })
+    .catch(function(){ });
+}
+
+function saveNotify() {
+  var fd = new FormData();
+  fd.append('wx_enabled', document.getElementById('wxEnabled').checked ? 'true' : 'false');
+  fd.append('wx_token', document.getElementById('wxToken').value);
+  fd.append('wx_uids', document.getElementById('wxUids').value);
+  fd.append('pp_enabled', document.getElementById('ppEnabled').checked ? 'true' : 'false');
+  fd.append('pp_token', document.getElementById('ppToken').value);
+
+  fetch('/admin?action=save_notify', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j.ok) {
+        showToast('✅ 通知配置已保存');
+        loadNotify();
+      } else {
+        showToast('❌ ' + (j.error || '保存失败'));
+      }
+    })
+    .catch(function(){ showToast('❌ 网络错误'); });
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  初始化
 // ═══════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function(){
   loadConfig();
   loadSchedule();
+  loadNotify();
   // 初始标签名
   document.title = 'Bilibili - AB Player';
 });
