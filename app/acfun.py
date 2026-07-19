@@ -493,7 +493,9 @@ async def _extract_best_m3u8(play_data: dict, headers: dict) -> Optional[str]:
                             full_ts_url = tl
                         else:
                             full_ts_url = cdn_base + tl
-                            # ts 分片已有自己的 pkey/safety_id，不要追加 auth_query，否则重复 pkey 导致 403
+                        # 追加 M3U8 URL 的鉴权参数（sign/t/us），否则 TS 分片返回 403
+                        if auth_query and "?" not in full_ts_url:
+                            full_ts_url += "?" + auth_query
                         rewritten.append(full_ts_url)
                     else:
                         rewritten.append(line)
@@ -604,7 +606,7 @@ async def _proxy_acfun_ts(ts_url: str, request: Request) -> Response:
 
 async def _play_acfun_stream(content_id: str, target_cid: str, request: Request):
     """获取 A站视频 ts 分片，合并为连续流返回（解决反代问题）"""
-    import asyncio, json, httpx
+    import asyncio, urllib.request, json
     from .config import load_config
 
     key = f"apls:{content_id}:{target_cid}"
@@ -612,92 +614,57 @@ async def _play_acfun_stream(content_id: str, target_cid: str, request: Request)
     if cached:
         ts_urls = json.loads(cached)
     else:
-        # 直接调用 REST API 获取播放信息（跳过 get_play_url，避免 urllib.request 被 CDN 封）
-        req_headers = _headers()
-        req_headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-
-        api_data = await http_get_json(
-            f"https://www.acfun.cn/rest/pc-direct/play/playInfo/ksPlayJson?videoId={target_cid}",
-            req_headers,
-        )
-        if not api_data or api_data.get("result", -1) != 0:
+        # 获取播放信息（通过 get_play_url → _extract_best_m3u8，已修复 TS 地址追加鉴权参数）
+        url_or_m3u8 = await get_play_url(content_id, target_cid)
+        if not url_or_m3u8:
             return PlainTextResponse("播放地址获取失败", status_code=502)
 
-        pi = api_data.get("playInfo", {})
-        ksp = pi.get("ksPlayJson", "")
-        if not ksp:
-            return PlainTextResponse("播放地址获取失败", status_code=502)
+        m3u8_content = url_or_m3u8
+        if url_or_m3u8.startswith("http"):
+            headers = _headers()
+            try:
+                r = await asyncio.to_thread(
+                    urllib.request.urlopen,
+                    urllib.request.Request(url_or_m3u8, headers=dict(headers)),
+                    timeout=10
+                )
+                m3u8_content = r.read().decode("utf-8")
+            except Exception as e:
+                return PlainTextResponse(f"获取 M3U8 失败: {e}", status_code=502)
 
-        try:
-            play_data = json.loads(ksp) if isinstance(ksp, str) else ksp
-        except json.JSONDecodeError:
-            return PlainTextResponse("播放数据解析失败", status_code=502)
-
-        # 提取最佳画质 M3U8 URL
-        ads = play_data.get("adaptationSet", [])
-        best_url = ""
-        best_pixels = 0
-        for ad in ads:
-            reps = ad.get("representation", [])
-            for r in reps:
-                rurl = r.get("url", "")
-                width = int(r.get("width", 0) or 0)
-                height = int(r.get("height", 0) or 0)
-                pixels = width * height
-                if rurl and pixels > best_pixels:
-                    best_pixels = pixels
-                    best_url = rurl
-
-        if not best_url:
-            return PlainTextResponse("未找到播放地址", status_code=502)
-
-        # 用 httpx 抓取 M3U8 内容（urllib.request 会被 CDN 403 封禁）
-        cdn_base = best_url.rsplit("/", 1)[0] + "/"
-        m3u8_content = None
-        try:
-            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as cli:
-                resp = await cli.get(best_url, headers=req_headers)
-                if resp.status_code == 200:
-                    m3u8_content = resp.text
-        except Exception:
-            pass
-
-        if not m3u8_content:
-            return PlainTextResponse("获取 M3U8 失败", status_code=502)
-
-        # 提取 TS 分片 URL，解析相对路径
+        # 从 M3U8 中提取 ts 分片 URL（已由 _extract_best_m3u8 追加鉴权参数）
         ts_urls = []
         for line in m3u8_content.split("\n"):
             tl = line.strip()
             if tl and not tl.startswith("#") and (".ts" in tl.lower()):
-                if tl.startswith("http"):
-                    ts_urls.append(tl)
-                else:
-                    # 相对路径 → 拼接 CDN base
-                    ts_urls.append(cdn_base + tl)
+                ts_urls.append(tl)
 
         if not ts_urls:
             return PlainTextResponse("未找到 TS 分片", status_code=502)
 
         cache_set(key, json.dumps(ts_urls, ensure_ascii=False), 86400)
 
-    # 准备 TS 请求头（含 Cookie）
-    ts_headers = _headers()
+    headers = _headers()
     _cfg = load_config()
     ac_cookie = _cfg.get("acfun_cookie", "")
     if ac_cookie:
         from urllib.parse import unquote
-        ts_headers["Cookie"] = unquote(ac_cookie).strip().rstrip(";").strip()
+        headers["Cookie"] = unquote(ac_cookie).strip().rstrip(";").strip()
 
     async def _stream():
-        async with httpx.AsyncClient(timeout=300, follow_redirects=True) as cli:
-            for ts_url in ts_urls:
-                try:
-                    async with cli.stream("GET", ts_url, headers=ts_headers) as resp:
-                        async for chunk in resp.aiter_bytes(chunk_size=65536):
-                            yield chunk
-                except Exception:
-                    continue
+        for ts_url in ts_urls:
+            try:
+                req = urllib.request.Request(ts_url, headers=dict(headers))
+                data = await asyncio.to_thread(
+                    urllib.request.urlopen, req, timeout=30
+                )
+                while True:
+                    chunk = data.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+            except Exception:
+                continue
 
     resp_headers = {
         "Access-Control-Allow-Origin": "*",
