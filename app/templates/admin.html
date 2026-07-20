@@ -220,8 +220,8 @@ a:hover{text-decoration:underline}
 <div class="top show" id="topBar">
   <div class="top-logo">AB Player</div>
   <nav class="top-nav" id="tabNav">
-    <a class="on" data-tab="bili">🅱️ Bilibili</a>
-    <a data-tab="acfun">🅰️ Acfun</a>
+    <a class="on" data-tab="acfun">🅰️ Acfun</a>
+    <a data-tab="bili">🅱️ Bilibili</a>
     <a data-tab="sub">📋 订阅</a>
     <a data-tab="settings">⚙️ 设置</a>
   </nav>
@@ -236,71 +236,8 @@ a:hover{text-decoration:underline}
 <!-- ═══ 主内容 ═══ -->
 <div class="main-card" id="mainCard">
 
-  <!-- ══════ Bilibili ══════ -->
-  <section class="page on" id="pg-bili">
-    <h2 class="pg-title">🅱️ Bilibili 管理</h2>
-    <div class="stats" id="biliStats">
-      <div class="stat"><span class="stat-num" id="biliStatUps">0</span><span class="stat-lbl">UP 主</span></div>
-      <div class="stat"><span class="stat-num" id="biliStatSeries">0</span><span class="stat-lbl">合集</span></div>
-      <div class="stat"><span class="stat-num" id="biliStatVideos">0</span><span class="stat-lbl">单视频</span></div>
-      <div class="stat"><span class="stat-num" id="biliStatRooms">0</span><span class="stat-lbl">直播</span></div>
-    </div>
-
-    <!-- UP 主管理 -->
-    <div class="card">
-      <div class="card-h">👤 UP 主 <span class="tag" id="biliUpTag">0</span></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input id="biliUpInput" class="f-input" style="flex:1" placeholder="https://space.bilibili.com/123456">
-        <input id="biliUpName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
-        <button class="btn btn-primary" onclick="addBiliUp()">添加</button>
-      </div>
-      <div id="biliUpList" style="margin-top:8px">
-        <div class="loading">暂无 UP 主，输入 MID 添加</div>
-      </div>
-    </div>
-
-    <!-- 合集管理 -->
-    <div class="card">
-      <div class="card-h">📁 合集 <span class="tag" id="biliSeriesTag">0</span></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input id="biliSeriesUrl" class="f-input" style="flex:1" placeholder="https://space.bilibili.com/123456/lists/123456">
-        <input id="biliSeriesName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
-        <button class="btn btn-primary" onclick="addBiliSeries()">添加</button>
-      </div>
-      <div id="biliSeriesList" style="margin-top:8px">
-        <div class="loading">暂无合集，输入 URL 添加</div>
-      </div>
-    </div>
-
-    <!-- 单视频管理 -->
-    <div class="card">
-      <div class="card-h">📹 单视频 <span class="tag" id="biliVideoTag">0</span></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input id="biliVideoInput" class="f-input" style="flex:1" placeholder="BV号 或 B站视频链接">
-        <input id="biliVideoName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
-        <button class="btn btn-primary" onclick="addBiliVideo()">添加</button>
-      </div>
-      <div id="biliVideoList" style="margin-top:8px">
-        <div class="loading">暂无单视频，在上方输入 BV 号添加</div>
-      </div>
-    </div>
-
-    <!-- 直播管理 -->
-    <div class="card">
-      <div class="card-h">🔴 直播 <span class="tag" id="biliRoomTag">0</span></div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <input id="biliRoomInput" class="f-input" style="flex:1" placeholder="房间号 或 https://live.bilibili.com/12345">
-        <input id="biliRoomName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
-        <button class="btn btn-primary" onclick="addBiliRoom()">添加</button>
-      </div>
-      <div id="biliRoomList" style="margin-top:8px">
-        <div class="loading">暂无直播，在上方输入房间号添加</div>
-      </div>    </div>
-
-      </section>
-
   <!-- ══════ Acfun ══════ -->
-  <section class="page" id="pg-acfun">
+  <section class="page on" id="pg-acfun">
     <h2 class="pg-title">🅰️ Acfun 管理</h2>
     <div class="stats cols-3" id="acfunStats">
       <div class="stat"><span class="stat-num" id="acfunStatUps">0</span><span class="stat-lbl">UP 主</span></div>
@@ -389,31 +326,73 @@ a:hover{text-decoration:underline}
   </section>
 
   <!-- ══════ 设置 ══════ -->
+  <!-- ══════ Bilibili ══════ -->
+  <section class="page" id="pg-bili">
+    <h2 class="pg-title">🅱️ Bilibili 管理</h2>
+    <div class="stats" id="biliStats">
+      <div class="stat"><span class="stat-num" id="biliStatUps">0</span><span class="stat-lbl">UP 主</span></div>
+      <div class="stat"><span class="stat-num" id="biliStatSeries">0</span><span class="stat-lbl">合集</span></div>
+      <div class="stat"><span class="stat-num" id="biliStatVideos">0</span><span class="stat-lbl">单视频</span></div>
+      <div class="stat"><span class="stat-num" id="biliStatRooms">0</span><span class="stat-lbl">直播</span></div>
+    </div>
+
+    <!-- UP 主管理 -->
+    <div class="card">
+      <div class="card-h">👤 UP 主 <span class="tag" id="biliUpTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliUpInput" class="f-input" style="flex:1" placeholder="https://space.bilibili.com/123456">
+        <input id="biliUpName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliUp()">添加</button>
+      </div>
+      <div id="biliUpList" style="margin-top:8px">
+        <div class="loading">暂无 UP 主，输入 MID 添加</div>
+      </div>
+    </div>
+
+    <!-- 合集管理 -->
+    <div class="card">
+      <div class="card-h">📁 合集 <span class="tag" id="biliSeriesTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliSeriesUrl" class="f-input" style="flex:1" placeholder="https://space.bilibili.com/123456/lists/123456">
+        <input id="biliSeriesName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliSeries()">添加</button>
+      </div>
+      <div id="biliSeriesList" style="margin-top:8px">
+        <div class="loading">暂无合集，输入 URL 添加</div>
+      </div>
+    </div>
+
+    <!-- 单视频管理 -->
+    <div class="card">
+      <div class="card-h">📹 单视频 <span class="tag" id="biliVideoTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliVideoInput" class="f-input" style="flex:1" placeholder="BV号 或 B站视频链接">
+        <input id="biliVideoName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliVideo()">添加</button>
+      </div>
+      <div id="biliVideoList" style="margin-top:8px">
+        <div class="loading">暂无单视频，在上方输入 BV 号添加</div>
+      </div>
+    </div>
+
+    <!-- 直播管理 -->
+    <div class="card">
+      <div class="card-h">🔴 直播 <span class="tag" id="biliRoomTag">0</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="biliRoomInput" class="f-input" style="flex:1" placeholder="房间号 或 https://live.bilibili.com/12345">
+        <input id="biliRoomName" class="f-input" style="flex:1" placeholder="名称（留空自动获取）">
+        <button class="btn btn-primary" onclick="addBiliRoom()">添加</button>
+      </div>
+      <div id="biliRoomList" style="margin-top:8px">
+        <div class="loading">暂无直播，在上方输入房间号添加</div>
+      </div>    </div>
+
+      </section>
+
   <section class="page" id="pg-settings">
     <h2 class="pg-title">⚙️ 设置</h2>
 
     <div class="row">
-      <!-- B站 扫码登录 / Cookie -->
-      <div class="card">
-        <div class="card-h">🔑 B站 Cookie</div>
-        <div id="biliQrArea" style="text-align:center">
-          <button class="btn btn-primary" onclick="startBiliQRLogin()" id="biliQrStartBtn">📱 扫码登录</button>
-          <div id="biliQrCode" style="display:none;margin:10px auto">
-            <img id="biliQrImg" style="width:180px;height:180px;border-radius:8px;border:1px solid var(--border)">
-            <div id="biliQrStatus" style="margin-top:8px;font-size:13px;color:var(--text-muted)">等待扫码...</div>
-            <button class="btn btn-sm" onclick="stopBiliQRLogin()" style="margin-top:6px">取消</button>
-          </div>
-          <div id="biliCookieDisplay" style="margin-top:10px;min-height:130px"></div>
-        </div>
-        <div style="margin-top:12px;border-top:1px solid var(--border-l);padding-top:12px">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">📝 手动添加 Cookie</div>
-          <div style="display:flex;gap:8px">
-            <input class="f-input" id="biliManualCookie" style="flex:1;font-size:11px;font-family:var(--mono)" placeholder="粘贴完整 Cookie 字符串">
-            <button class="btn btn-sm btn-primary" onclick="saveBiliCookie()">💾</button>
-          </div>
-        </div>
-      </div>
-
       <!-- A站 扫码登录 / Cookie -->
       <div class="card">
         <div class="card-h">🔑 A站 Cookie</div>
@@ -435,6 +414,27 @@ a:hover{text-decoration:underline}
         </div>
       </div>
     </div>
+
+      <!-- B站 扫码登录 / Cookie -->
+      <div class="card">
+        <div class="card-h">🔑 B站 Cookie</div>
+        <div id="biliQrArea" style="text-align:center">
+          <button class="btn btn-primary" onclick="startBiliQRLogin()" id="biliQrStartBtn">📱 扫码登录</button>
+          <div id="biliQrCode" style="display:none;margin:10px auto">
+            <img id="biliQrImg" style="width:180px;height:180px;border-radius:8px;border:1px solid var(--border)">
+            <div id="biliQrStatus" style="margin-top:8px;font-size:13px;color:var(--text-muted)">等待扫码...</div>
+            <button class="btn btn-sm" onclick="stopBiliQRLogin()" style="margin-top:6px">取消</button>
+          </div>
+          <div id="biliCookieDisplay" style="margin-top:10px;min-height:130px"></div>
+        </div>
+        <div style="margin-top:12px;border-top:1px solid var(--border-l);padding-top:12px">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">📝 手动添加 Cookie</div>
+          <div style="display:flex;gap:8px">
+            <input class="f-input" id="biliManualCookie" style="flex:1;font-size:11px;font-family:var(--mono)" placeholder="粘贴完整 Cookie 字符串">
+            <button class="btn btn-sm btn-primary" onclick="saveBiliCookie()">💾</button>
+          </div>
+        </div>
+      </div>
 
     <!-- 定时刷新 -->
     <div class="card" style="margin-top:14px">
