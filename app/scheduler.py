@@ -319,6 +319,13 @@ def _send_notification(title, parts, total_series, total_ups, total_videos, tota
     # 构建通知内容
     content_lines = []
     if parts:
+        content_lines.append("🎬 A站相关：")
+        if total_albums:
+            content_lines.append(f"  • 合辑: {total_albums} 个")
+        if total_acfun_ups:
+            content_lines.append(f"  • UP主: {total_acfun_ups} 个")
+        if total_acfun_videos:
+            content_lines.append(f"  • 单视频: {total_acfun_videos} 个")
         content_lines.append("📺 B站相关：")
         if total_series:
             content_lines.append(f"  • 合集: {total_series} 个")
@@ -328,13 +335,6 @@ def _send_notification(title, parts, total_series, total_ups, total_videos, tota
             content_lines.append(f"  • 单视频: {total_videos} 个")
         if total_rooms:
             content_lines.append(f"  • 直播: {total_rooms} 个")
-        content_lines.append("🎬 A站相关：")
-        if total_albums:
-            content_lines.append(f"  • 合辑: {total_albums} 个")
-        if total_acfun_ups:
-            content_lines.append(f"  • UP主: {total_acfun_ups} 个")
-        if total_acfun_videos:
-            content_lines.append(f"  • 单视频: {total_acfun_videos} 个")
     else:
         content_lines.append("📭 无内容更新")
 
