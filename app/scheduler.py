@@ -190,7 +190,7 @@ def _do_refresh(cfg: dict):
                     first_cid = pages[0].get("cid", 0)
                     if first_cid:
                         cache_delete(f"pu:{bvid}:{first_cid}:116")
-                        _run_async(video_playurl(bvid, first_cid, qn=116))
+                        _run_async(video_playurl(bvid, first_cid, qn=116, fnval=4048))
                 total_videos += 1
             else:
                 errors.append(f"B站单视频 {bvid}: 获取失败")

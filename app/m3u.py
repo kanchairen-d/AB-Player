@@ -264,7 +264,7 @@ async def _prefetch_play_urls(cfg: dict, items: list):
             pages = vi.get("pages", [])
             first_cid = pages[0]["cid"] if pages else vi.get("cid", 0)
             if first_cid:
-                await video_playurl(bvid, int(first_cid), qn=116)
+                await video_playurl(bvid, int(first_cid), qn=116, fnval=4048)
 
     await asyncio.gather(*[_prefetch(b) for b in bvids[:30]])
 
@@ -511,14 +511,14 @@ async def build_sub_m3u(request: Request, cfg: dict, sub_name: str) -> Response:
             return
         seen_bvids.add(bvid)
         if cid:
-            await video_playurl(bvid, cid, qn=116)
+            await video_playurl(bvid, cid, qn=116, fnval=4048)
         else:
             vid_info = await video_info(bvid)
             if vid_info:
                 pages = vid_info.get("pages", [])
                 first_cid = pages[0]["cid"] if pages else vid_info.get("cid", 0)
                 if first_cid:
-                    await video_playurl(bvid, int(first_cid), qn=116)
+                    await video_playurl(bvid, int(first_cid), qn=116, fnval=4048)
 
     if prefetch_bvids:
         await asyncio.gather(*[

@@ -141,7 +141,7 @@ async def video_playurl(bvid: str, cid: int = 0, qn: int = 116, fnval: int = 0) 
     if not play:
         return None
 
-    result = {"qn": qn}
+    result = {"qn": qn, "accept_quality": play.get("accept_quality", [])}
     if play.get("dash"):
         result["dash"] = {
             "video": [{"id": t["id"], "url": t.get("baseUrl", "")}

@@ -23,18 +23,22 @@ def _render(name, ctx=None, **kw):
 
 async def bili_get_play_url(bvid: str, cid: int) -> Optional[str]:
     """获取B站视频播放地址。优先 FLV（音视频一体），降级至 DASH video-only"""
-    # 从低到高尝试各画质，优先找 FLV（含音频）
-    for qn in [80, 64, 32, 16]:
-        info = await video_playurl(bvid, cid, qn=qn)
-        if info and info.get("flv"):
-            return info["flv"][0]["url"]
-    # 通过 fnval=4048 取 DASH（含 1080P+，需要播放器合并音视频）
+    # 先检查有没有 1080P FLV（含音频，无需 DASH 合并）
+    info_flv = await video_playurl(bvid, cid, qn=80)
+    if info_flv and info_flv.get("flv") and 80 in info_flv.get("accept_quality", []):
+        return info_flv["flv"][0]["url"]
+    # 没有 1080P FLV，通过 fnval=4048 取 DASH 1080P（video-only）
     info = await video_playurl(bvid, cid, qn=116, fnval=4048)
     if info:
         if info.get("flv"):
             return info["flv"][0]["url"]
         if info.get("dash") and info["dash"].get("video"):
             return info["dash"]["video"][0]["url"]
+    # 降级至 720P FLV
+    for qn in [64, 32, 16]:
+        info = await video_playurl(bvid, cid, qn=qn)
+        if info and info.get("flv"):
+            return info["flv"][0]["url"]
     return None
 
 
