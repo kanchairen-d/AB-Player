@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from .config import load_config, BASE_DIR, http_get
 from .bilibili import video_info, series_videos, up_videos, search_videos
-from .acfun import fetch_album_videos, fetch_user_videos
+from .acfun import fetch_album_videos, fetch_user_videos, expand_videos_for_m3u
 
 # B站 CDN URL 缓存（detail 预取，play 直接用）
 _BILI_CDN_CACHE = {}  # key: bvid_p -> {"cdn_url": str, "cid": int, "expires_at": float}
@@ -193,6 +193,7 @@ def register(app):
                 from .acfun import fetch_album_videos as _fetch_acfun_album_videos
                 videos = await _fetch_acfun_album_videos(album_id)
                 if videos:
+                    videos = expand_videos_for_m3u(videos)
                     return JSONResponse({"videos": videos})
                 return JSONResponse({"error": "获取失败"})
 
@@ -1076,6 +1077,7 @@ async def _handle_videolist(cfg: dict, type_id: str, page: int):
         videos = await fetch_album_videos(aid)
         if not videos:
             return JSONResponse({"list": [], "total": 0})
+        videos = expand_videos_for_m3u(videos)
         total = len(videos)
         page_videos = videos[offset:offset + ps]
         vlist = [{
