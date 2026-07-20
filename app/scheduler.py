@@ -119,8 +119,27 @@ def _do_refresh(cfg: dict):
         save_schedule(cfg)
 
         import asyncio
-        results = asyncio.run(_do_refresh_async())
-        errors, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos = results
+        import httpx
+        from .config import _HTTPX_LIMITS
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            results = loop.run_until_complete(_do_refresh_async())
+            errors, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos = results
+        finally:
+            # 关闭全局 httpx 客户端连接，再重建，避免下次 Event loop is closed
+            import app.config as config_module
+            try:
+                loop.run_until_complete(config_module._HTTPX_CLIENT.aclose())
+            except Exception:
+                pass
+            loop.close()
+            config_module._HTTPX_CLIENT = httpx.AsyncClient(
+                limits=_HTTPX_LIMITS,
+                timeout=httpx.Timeout(15.0, connect=5.0),
+                follow_redirects=True,
+            )
 
         # ═══ 状态更新 ═══
         parts = []
