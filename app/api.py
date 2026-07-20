@@ -26,6 +26,12 @@ def build_base_url(request: Request) -> str:
 def register(app):
     router = APIRouter()
 
+    @router.head("/api", include_in_schema=False)
+    async def api_head(request: Request):
+        """HEAD 探活：快速返回 200"""
+        from fastapi.responses import Response
+        return Response(status_code=200, headers={"Access-Control-Allow-Origin": "*"})
+
     @router.get("/api")
     async def api_route(
         request: Request,
@@ -113,9 +119,10 @@ def register(app):
                     return JSONResponse({"error": "无法获取CID"}, status_code=404)
 
                 from .player import bili_get_play_url
-                url = await bili_get_play_url(bvid, cid)
-                if not url:
+                result = await bili_get_play_url(bvid, cid)
+                if not result or not result.get("url"):
                     return JSONResponse({"error": "获取播放地址失败"}, status_code=404)
+                url = result["url"]
 
             import httpx
             from fastapi.responses import StreamingResponse
@@ -193,7 +200,6 @@ def register(app):
                 from .acfun import fetch_album_videos as _fetch_acfun_album_videos
                 videos = await _fetch_acfun_album_videos(album_id)
                 if videos:
-                    videos = expand_videos_for_m3u(videos)
                     return JSONResponse({"videos": videos})
                 return JSONResponse({"error": "获取失败"})
 
@@ -354,7 +360,7 @@ def register(app):
                 from .acfun import fetch_video_info as _fetch_acfun_info
                 vi = await _fetch_acfun_info(info_str)
                 if vi:
-                    return JSONResponse({"data": vi})
+                    return JSONResponse(vi)
             else:
                 vi = await video_info(info_str)
                 if vi:
@@ -723,7 +729,8 @@ async function getPlayerContent(flag, id) {{
             if not cid:
                 return JSONResponse({"error": "无法获取CID"}, status_code=404)
             from .player import bili_get_play_url as _bili_get_play_url
-            cdn_url = await _bili_get_play_url(bvid, cid)
+            result = await _bili_get_play_url(bvid, cid)
+            cdn_url = result.get("url") if result else None
             if cdn_url:
                 from urllib.parse import quote
                 pu = f"{base_url}/api?bili_proxy={quote(cdn_url)}"
@@ -1077,7 +1084,6 @@ async def _handle_videolist(cfg: dict, type_id: str, page: int):
         videos = await fetch_album_videos(aid)
         if not videos:
             return JSONResponse({"list": [], "total": 0})
-        videos = expand_videos_for_m3u(videos)
         total = len(videos)
         page_videos = videos[offset:offset + ps]
         vlist = [{
@@ -1305,7 +1311,8 @@ async def _handle_detail(ids_param: str, base_url: str):
             cid = int(pg_.get("cid", 0))
             part = pg_.get("part", f"第{pn}集")
             if cid:
-                cdn_url = await _bili_get_play_url(bvid, cid)
+                result = await _bili_get_play_url(bvid, cid)
+                cdn_url = result.get("url") if result else None
                 if cdn_url:
                     _BILI_CDN_CACHE[f"{bvid}_{pn}"] = {"cdn_url": cdn_url, "cid": cid, "expires_at": time.time() + 600}
                     episodes.append(f"{part}${base_url}/api?id={bvid}&p={pn}")
@@ -1314,7 +1321,8 @@ async def _handle_detail(ids_param: str, base_url: str):
     else:
         cid = int(pages[0].get("cid", 0)) if pages else 0
         if cid:
-            cdn_url = await _bili_get_play_url(bvid, cid)
+            result = await _bili_get_play_url(bvid, cid)
+            cdn_url = result.get("url") if result else None
             if cdn_url:
                 _BILI_CDN_CACHE[f"{bvid}_1"] = {"cdn_url": cdn_url, "cid": cid, "expires_at": time.time() + 600}
                 episodes.append(f"播放${base_url}/api?id={bvid}&p=1")
@@ -1806,8 +1814,8 @@ async function getVideoDetail(args) {{
     const acId = vodId.substring(6);
     try {{
       const res = await req(buildURL("api", {{ info: acId }}), {{ headers: {{ "User-Agent": UA }} }});
-      const title = (res && res.data && res.data.title) ? res.data.title : "A站视频";
-      const videoList = (res && res.data && res.data.videoList) || [];
+      const title = (res && res.data && res.data.title) ? res.data.title : (res && res.title) || "A站视频";
+      const videoList = (res && res.data && res.data.videoList) || (res && res.videoList) || [];
       let playUrl = "";
       let remarks = "";
       if (videoList.length > 1) {{
