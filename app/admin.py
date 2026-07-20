@@ -733,6 +733,17 @@ def register(app):
             save_schedule(sched)
             return JSONResponse({"ok": True, "schedule": sched})
 
+        if action == "refresh_now":
+            import threading
+            from .scheduler import load_schedule, _do_refresh
+            def _run():
+                try:
+                    _do_refresh(load_schedule())
+                except Exception:
+                    pass
+            threading.Thread(target=_run, daemon=True, name="refresh-now").start()
+            return JSONResponse({"ok": True, "message": "正在刷新所有订阅..."})
+
         return JSONResponse({"error": f"未知操作: {action}"})
 
     app.include_router(router)

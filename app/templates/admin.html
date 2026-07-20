@@ -436,32 +436,46 @@ a:hover{text-decoration:underline}
       </div>
     </div>
 
-    <!-- 定时刷新 -->
-    <div class="card" style="margin-top:14px">
-      <div class="card-h">⏰ 定时刷新 <span class="tag" id="schedStatus">加载中...</span></div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <label style="display:flex;align-items:center;gap:4px;font-size:14px;white-space:nowrap">
-          <input type="checkbox" id="schedEnabled"> 启用
-        </label>
-        <span style="font-size:13px;color:var(--text-muted);margin-left:4px">模式：</span>
-        <select id="schedMode" class="f-input" style="width:auto;padding:5px 8px;font-size:13px" onchange="toggleSchedMode()">
-          <option value="daily">每天固定时间</option>
-          <option value="interval">间隔小时</option>
-        </select>
-        <div id="schedDailyOpt" style="display:flex;align-items:center;gap:4px;white-space:nowrap">
-          <span style="font-size:13px;color:var(--text-muted)">每天：</span>
-          <input type="time" id="schedTime" class="f-input" style="width:120px;padding:5px 8px;font-size:13px" value="04:00">
+    <!-- 定时刷新 + 立即刷新（两卡同行） -->
+    <div style="display:flex;gap:14px;margin-top:14px">
+      <!-- 左卡：定时刷新设置 -->
+      <div class="card" style="flex:1;min-width:0">
+        <div class="card-h">⏰ 定时刷新 <span class="tag" id="schedStatus">加载中...</span></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <label style="display:flex;align-items:center;gap:4px;font-size:14px;white-space:nowrap">
+            <input type="checkbox" id="schedEnabled"> 启用
+          </label>
+          <span style="font-size:13px;color:var(--text-muted);margin-left:4px">模式：</span>
+          <select id="schedMode" class="f-input" style="width:auto;padding:5px 8px;font-size:13px" onchange="toggleSchedMode()">
+            <option value="daily">每天固定时间</option>
+            <option value="interval">间隔小时</option>
+          </select>
+          <div id="schedDailyOpt" style="display:flex;align-items:center;gap:4px;white-space:nowrap">
+            <span style="font-size:13px;color:var(--text-muted)">每天：</span>
+            <input type="time" id="schedTime" class="f-input" style="width:120px;padding:5px 8px;font-size:13px" value="04:00">
+          </div>
+          <div id="schedIntervalOpt" style="display:none;align-items:center;gap:4px;white-space:nowrap">
+            <span style="font-size:13px;color:var(--text-muted)">每隔：</span>
+            <input type="number" id="schedInterval" class="f-input" style="width:60px;padding:5px 8px;font-size:13px" value="4" min="1" max="48">
+            <span style="font-size:13px;color:var(--text-muted)">小时</span>
+          </div>
+          <button class="btn btn-primary" onclick="saveSchedule()" style="padding:5px 12px;font-size:13px">💾 保存</button>
         </div>
-        <div id="schedIntervalOpt" style="display:none;align-items:center;gap:4px;white-space:nowrap">
-          <span style="font-size:13px;color:var(--text-muted)">每隔：</span>
-          <input type="number" id="schedInterval" class="f-input" style="width:60px;padding:5px 8px;font-size:13px" value="4" min="1" max="48">
-          <span style="font-size:13px;color:var(--text-muted)">小时</span>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.6">
+          <span id="schedLastRun"></span>
+          <span id="schedLastStatus"></span>
         </div>
-        <button class="btn btn-primary" onclick="saveSchedule()" style="padding:5px 12px;font-size:13px">💾 保存</button>
       </div>
-      <div style="display:flex;gap:12px;align-items:center;margin-top:6px;font-size:12px;color:var(--text-muted)">
-        <span id="schedLastRun"></span>
-        <span id="schedLastStatus"></span>
+      <!-- 右卡：立即刷新 -->
+      <div class="card" style="flex:1;min-width:0">
+        <div class="card-h">🔄 立即刷新</div>
+        <div style="margin-top:10px">
+          <button class="btn btn-primary" onclick="refreshNow()" style="padding:8px 24px;font-size:14px">🔄 立即刷新</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.6">
+          <span id="schedLastRun2"></span>
+          <span id="schedLastStatus2"></span>
+        </div>
       </div>
     </div>
     <!-- 推送通知 -->
@@ -477,8 +491,14 @@ a:hover{text-decoration:underline}
           </div>
           <div id="wxFields" style="display:none;margin-top:14px">
             <div style="display:flex;flex-direction:column;gap:10px">
-              <input type="password" id="wxToken" class="f-input" style="width:100%;padding:8px 10px" placeholder="WxPusher APP Token">
-              <input type="password" id="wxUids" class="f-input" style="width:100%;padding:8px 10px" placeholder="UID（多个用英文逗号分隔）">
+              <div style="position:relative">
+                <input type="password" id="wxToken" class="f-input" style="width:100%;padding:8px 10px;padding-right:32px" placeholder="WxPusher APP Token">
+                <span onclick="togglePassword('wxToken')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;user-select:none">👁</span>
+              </div>
+              <div style="position:relative">
+                <input type="password" id="wxUids" class="f-input" style="width:100%;padding:8px 10px;padding-right:32px" placeholder="UID（多个用英文逗号分隔）">
+                <span onclick="togglePassword('wxUids')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;user-select:none">👁</span>
+              </div>
             </div>
           </div>
           <!-- 分割线 -->
@@ -490,7 +510,10 @@ a:hover{text-decoration:underline}
           </div>
           <div id="ppFields" style="display:none;margin-top:14px">
             <div style="display:flex;flex-direction:column;gap:10px">
-              <input type="password" id="ppToken" class="f-input" style="width:100%;padding:8px 10px" placeholder="PushPlus Token">
+              <div style="position:relative">
+                <input type="password" id="ppToken" class="f-input" style="width:100%;padding:8px 10px;padding-right:32px" placeholder="PushPlus Token">
+                <span onclick="togglePassword('ppToken')" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;user-select:none">👁</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1850,16 +1873,23 @@ function loadSchedule() {
       statusEl.textContent = s.enabled ? '🟢 运行中' : '🔴 已暂停';
 
       var lastRunEl = document.getElementById('schedLastRun');
+      var lastRunEl2 = document.getElementById('schedLastRun2');
       if (s.last_run) {
         var d = new Date(s.last_run);
         var pad = function(n){ return n < 10 ? '0' + n : n; };
-        lastRunEl.textContent = '⏱ 上次执行: ' + d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        var text = '⏱ 上次执行: ' + d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        lastRunEl.textContent = text;
+        lastRunEl2.textContent = text;
       } else {
         lastRunEl.textContent = '⏱ 尚未执行';
+        lastRunEl2.textContent = '⏱ 尚未执行';
       }
 
       var lastStatusEl = document.getElementById('schedLastStatus');
-      lastStatusEl.textContent = s.last_status || '';
+      var lastStatusEl2 = document.getElementById('schedLastStatus2');
+      var statusText = s.last_status || '';
+      lastStatusEl.textContent = statusText;
+      lastStatusEl2.textContent = statusText;
     })
     .catch(function(){ });
 }
@@ -1879,6 +1909,21 @@ function saveSchedule() {
         loadSchedule();
       } else {
         showToast('❌ ' + (j.error || '保存失败'));
+
+function refreshNow() {
+  showToast('🔄 正在刷新所有订阅...');
+  fetch('/admin?action=refresh_now', { method: 'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(j) {
+      if (j.ok) {
+        showToast('✅ 刷新任务已启动');
+        // 5秒后刷新状态
+        setTimeout(function() { loadSchedule(); }, 5000);
+      } else {
+        showToast('❌ ' + (j.error || '启动失败'));
+      }
+    });
+}
       }
     })
     .catch(function(){ showToast('❌ 网络错误'); });
@@ -1887,6 +1932,11 @@ function saveSchedule() {
 // ═══════════════════════════════════════════════════════════════════
 //  推送通知
 // ═══════════════════════════════════════════════════════════════════
+
+function togglePassword(id) {
+  var el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
 
 function toggleNotify() {
   document.getElementById('wxFields').style.display = document.getElementById('wxEnabled').checked ? 'block' : 'none';
