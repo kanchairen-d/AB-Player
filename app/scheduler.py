@@ -354,6 +354,8 @@ async def _do_refresh_async():
         except Exception as e:
             errors.append(f"A站单视频 {vid}: {e}")
 
+    # 排序：A站在前，B站在后
+    changes.sort(key=lambda c: (0, c) if c.startswith("A站") else (1, c))
     return errors, changes, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos
 
 def _send_notification(title, changes, total_series, total_ups, total_videos, total_rooms,
