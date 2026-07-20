@@ -1914,28 +1914,18 @@ function saveSchedule() {
 }
 
 function refreshNow() {
-  var w = document.getElementById('toastWrap');
-  var t = document.createElement('div');
-  t.className = 'tt ok';
-  t.textContent = '🔄 正在刷新所有订阅...';
-  w.appendChild(t);
-
   fetch('/admin?action=refresh_now', { method: 'POST' })
     .then(function(r){ return r.json(); })
     .then(function(j) {
       if (j.ok) {
-        t.textContent = '✅ 刷新任务已完成';
+        showToast('✅ 刷新任务已完成');
       } else {
-        t.textContent = '❌ ' + (j.error || '启动失败');
-        t.className = 'tt err';
+        showToast('❌ ' + (j.error || '启动失败'));
       }
-      setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){ t.remove() }, 300); }, 2000);
       setTimeout(function() { loadSchedule(); }, 5000);
     })
     .catch(function(){
-      t.textContent = '❌ 网络错误';
-      t.className = 'tt err';
-      setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){ t.remove() }, 300); }, 2000);
+      showToast('❌ 网络错误');
     });
 }
 

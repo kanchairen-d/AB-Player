@@ -9,6 +9,7 @@ DATA_DIR = BASE_DIR / "data"
 SCHEDULE_FILE = DATA_DIR / "schedule.json"
 
 _scheduler_running = False
+_refresh_lock = threading.Lock()
 
 
 def load_schedule() -> dict:
@@ -109,19 +110,60 @@ def _cleanup_expired_cache():
 
 def _do_refresh(cfg: dict):
     """执行刷新所有合集、UP主、单视频、直播（B站 + A站）"""
-    cfg["last_run"] = datetime.now().isoformat()
-    cfg["last_status"] = "运行中..."
-    save_schedule(cfg)
+    if not _refresh_lock.acquire(blocking=False):
+        print("[Scheduler] 刷新已在运行中，跳过")
+        return
+    try:
+        cfg["last_run"] = datetime.now().isoformat()
+        cfg["last_status"] = "运行中..."
+        save_schedule(cfg)
 
-    errors = []
-    total_series = 0
-    total_ups = 0
-    total_albums = 0
-    total_acfun_ups = 0
-    total_videos = 0
-    total_rooms = 0
-    total_acfun_videos = 0
+        import asyncio
+        results = asyncio.run(_do_refresh_async())
+        errors, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos = results
 
+        # ═══ 状态更新 ═══
+        parts = []
+        if total_albums:
+            parts.append(f"A站合辑: {total_albums}")
+        if total_acfun_ups:
+            parts.append(f"A站UP主: {total_acfun_ups}")
+        if total_acfun_videos:
+            parts.append(f"A站单视频: {total_acfun_videos}")
+        if total_series:
+            parts.append(f"B站合集: {total_series}")
+        if total_ups:
+            parts.append(f"B站UP主: {total_ups}")
+        if total_videos:
+            parts.append(f"B站单视频: {total_videos}")
+        if total_rooms:
+            parts.append(f"B站直播: {total_rooms}")
+
+        if not parts:
+            parts.append("无内容")
+
+        status = f"✅ 刷新完成: {'; '.join(parts)}"
+        if errors:
+            status += f" ⚠️ {len(errors)}个错误"
+            status += "\n" + "\n".join(errors[:5])
+            if len(errors) > 5:
+                status += f"\n...还有 {len(errors)-5} 个错误"
+        cfg["last_status"] = status
+        save_schedule(cfg)
+        print(f"[Scheduler] {status}")
+
+        # ═══ 推送通知 ═══
+        try:
+            _send_notification("AB-Player 自动刷新", parts, total_series, total_ups, total_videos, total_rooms,
+                               total_albums, total_acfun_ups, total_acfun_videos, errors)
+        except Exception as e:
+            print(f"[Scheduler] 通知发送失败: {e}")
+    finally:
+        _refresh_lock.release()
+
+
+async def _do_refresh_async():
+    """异步刷新所有订阅，由 _do_refresh 通过 asyncio.run 调用"""
     from .config import load_config as load_app_config, cache_delete
     app_cfg = load_app_config()
     series_list = app_cfg.get("bili_series", [])
@@ -132,12 +174,14 @@ def _do_refresh(cfg: dict):
     acfun_up_list = app_cfg.get("acfun_ups", [])
     acfun_video_list = app_cfg.get("acfun_videos", [])
 
-    import asyncio
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    def _run_async(coro):
-        return loop.run_until_complete(coro)
+    errors = []
+    total_series = 0
+    total_ups = 0
+    total_albums = 0
+    total_acfun_ups = 0
+    total_videos = 0
+    total_rooms = 0
+    total_acfun_videos = 0
 
     # ═══ B站合集 ═══
     for s in series_list:
@@ -148,9 +192,7 @@ def _do_refresh(cfg: dict):
             continue
         try:
             from .bilibili import series_videos
-            result = _run_async(series_videos(
-                int(sid), mid=s_mid, pn=1, ps=100, fmt=s_fmt, force=True
-            ))
+            result = await series_videos(int(sid), mid=s_mid, pn=1, ps=100, fmt=s_fmt, force=True)
             if result:
                 total_series += 1
             else:
@@ -165,7 +207,7 @@ def _do_refresh(cfg: dict):
             continue
         try:
             from .bilibili import up_videos
-            result = _run_async(up_videos(int(uid), pn=1, ps=50, force=True))
+            result = await up_videos(int(uid), pn=1, ps=50, force=True)
             if result:
                 total_ups += 1
             else:
@@ -180,17 +222,15 @@ def _do_refresh(cfg: dict):
             continue
         try:
             from .bilibili import video_info, video_playurl
-            # 清除缓存，强制刷新
             cache_delete(f"vi:{bvid}")
-            info = _run_async(video_info(bvid))
+            info = await video_info(bvid)
             if info:
-                # 也刷新 playurl
                 pages = info.get("pages", [])
                 if pages:
                     first_cid = pages[0].get("cid", 0)
                     if first_cid:
                         cache_delete(f"pu:{bvid}:{first_cid}:116")
-                        _run_async(video_playurl(bvid, first_cid, qn=116, fnval=4048))
+                        await video_playurl(bvid, first_cid, qn=116, fnval=4048)
                 total_videos += 1
             else:
                 errors.append(f"B站单视频 {bvid}: 获取失败")
@@ -204,12 +244,11 @@ def _do_refresh(cfg: dict):
             continue
         try:
             from .bilibili import live_info, live_playurl
-            # 清除缓存，强制刷新
             cache_delete(f"li:{rid}")
-            info = _run_async(live_info(int(rid)))
+            info = await live_info(int(rid))
             if info:
                 cache_delete(f"lp:{rid}")
-                _run_async(live_playurl(int(rid)))
+                await live_playurl(int(rid))
                 total_rooms += 1
             else:
                 errors.append(f"B站直播 {rid}: 获取失败")
@@ -223,7 +262,7 @@ def _do_refresh(cfg: dict):
             continue
         try:
             from .acfun import fetch_album_videos
-            result = _run_async(fetch_album_videos(aid, force=True))
+            result = await fetch_album_videos(aid, force=True)
             if result:
                 total_albums += 1
             else:
@@ -238,7 +277,7 @@ def _do_refresh(cfg: dict):
             continue
         try:
             from .acfun import fetch_user_videos
-            result = _run_async(fetch_user_videos(mid, force=True))
+            result = await fetch_user_videos(mid, force=True)
             if result:
                 total_acfun_ups += 1
             else:
@@ -254,57 +293,18 @@ def _do_refresh(cfg: dict):
         try:
             from .acfun import fetch_video_info, get_play_url
             cache_delete(f"avi:{vid}")
-            info = _run_async(fetch_video_info(vid, force=True))
+            info = await fetch_video_info(vid, force=True)
             if info:
-                # 也刷新播放地址
                 cache_delete(f"apu:{vid}:")
                 cache_delete(f"appu:{vid}:")
-                _run_async(get_play_url(vid, ""))
+                await get_play_url(vid, "")
                 total_acfun_videos += 1
             else:
                 errors.append(f"A站单视频 {vid}: 获取失败")
         except Exception as e:
             errors.append(f"A站单视频 {vid}: {e}")
 
-    # ═══ 状态更新 ═══
-    parts = []
-    if total_albums:
-        parts.append(f"A站合辑: {total_albums}")
-    if total_acfun_ups:
-        parts.append(f"A站UP主: {total_acfun_ups}")
-    if total_acfun_videos:
-        parts.append(f"A站单视频: {total_acfun_videos}")
-    if total_series:
-        parts.append(f"B站合集: {total_series}")
-    if total_ups:
-        parts.append(f"B站UP主: {total_ups}")
-    if total_videos:
-        parts.append(f"B站单视频: {total_videos}")
-    if total_rooms:
-        parts.append(f"B站直播: {total_rooms}")
-
-    if not parts:
-        parts.append("无内容")
-
-    status = f"✅ 刷新完成: {'; '.join(parts)}"
-    if errors:
-        status += f" ⚠️ {len(errors)}个错误"
-        status += "\n" + "\n".join(errors[:5])
-        if len(errors) > 5:
-            status += f"\n...还有 {len(errors)-5} 个错误"
-    cfg["last_status"] = status
-    save_schedule(cfg)
-    print(f"[Scheduler] {status}")
-
-    # ═══ 推送通知 ═══
-    try:
-        _send_notification("AB-Player 自动刷新", parts, total_series, total_ups, total_videos, total_rooms,
-                           total_albums, total_acfun_ups, total_acfun_videos, errors)
-    except Exception as e:
-        print(f"[Scheduler] 通知发送失败: {e}")
-
-    loop.close()
-
+    return errors, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos
 
 def _send_notification(title, parts, total_series, total_ups, total_videos, total_rooms,
                        total_albums, total_acfun_ups, total_acfun_videos, errors):
