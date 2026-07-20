@@ -268,6 +268,12 @@ def _do_refresh(cfg: dict):
 
     # ═══ 状态更新 ═══
     parts = []
+    if total_albums:
+        parts.append(f"A站合辑: {total_albums}")
+    if total_acfun_ups:
+        parts.append(f"A站UP主: {total_acfun_ups}")
+    if total_acfun_videos:
+        parts.append(f"A站单视频: {total_acfun_videos}")
     if total_series:
         parts.append(f"B站合集: {total_series}")
     if total_ups:
@@ -276,12 +282,6 @@ def _do_refresh(cfg: dict):
         parts.append(f"B站单视频: {total_videos}")
     if total_rooms:
         parts.append(f"B站直播: {total_rooms}")
-    if total_albums:
-        parts.append(f"A站合辑: {total_albums}")
-    if total_acfun_ups:
-        parts.append(f"A站UP主: {total_acfun_ups}")
-    if total_acfun_videos:
-        parts.append(f"A站单视频: {total_acfun_videos}")
 
     if not parts:
         parts.append("无内容")
