@@ -22,23 +22,9 @@ def _render(name, ctx=None, **kw):
 
 
 async def bili_get_play_url(bvid: str, cid: int) -> dict:
-    """获取B站视频播放地址。返回 {url, audio_url, is_dash}"""
-    # 先检查有没有 1080P FLV（含音频，无需 DASH 合并）
-    info_flv = await video_playurl(bvid, cid, qn=80)
-    if info_flv and info_flv.get("flv") and 80 in info_flv.get("accept_quality", []):
-        return {"url": info_flv["flv"][0]["url"], "audio_url": None, "is_dash": False}
-    # 没有 1080P FLV，通过 fnval=4048 取 DASH 1080P
-    info = await video_playurl(bvid, cid, qn=116, fnval=4048)
-    if info:
-        if info.get("flv"):
-            return {"url": info["flv"][0]["url"], "audio_url": None, "is_dash": False}
-        if info.get("dash") and info["dash"].get("video"):
-            audio_url = None
-            if info["dash"].get("audio"):
-                audio_url = info["dash"]["audio"][0]["url"]
-            return {"url": info["dash"]["video"][0]["url"], "audio_url": audio_url, "is_dash": True}
-    # 降级至 720P FLV
-    for qn in [64, 32, 16]:
+    """获取B站视频播放地址。优先 1080P FLV，降级至 720P FLV"""
+    # qn=80=1080P, qn=64=720P, 只找 FLV（含音频），DASH 音视频分离放弃
+    for qn in [80, 64]:
         info = await video_playurl(bvid, cid, qn=qn)
         if info and info.get("flv"):
             return {"url": info["flv"][0]["url"], "audio_url": None, "is_dash": False}

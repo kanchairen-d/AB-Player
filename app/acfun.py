@@ -605,76 +605,25 @@ async def _proxy_acfun_ts(ts_url: str, request: Request) -> Response:
 # ═══════════════════════════════════════════════════════════════
 
 async def _play_acfun_stream(content_id: str, target_cid: str, request: Request):
-    """获取 A站视频 ts 分片，合并为连续流返回（解决反代问题）"""
-    import asyncio, urllib.request, json
-    from .config import load_config
+    """直连模式：返回 A站 CDN 的直接 M3U8 URL 或内容，不走服务器中转"""
+    from fastapi.responses import RedirectResponse, Response
 
-    key = f"apls:{content_id}:{target_cid}"
-    cached = cache_get(key, 86400)
-    if cached:
-        ts_urls = json.loads(cached)
-    else:
-        # 获取播放信息（通过 get_play_url → _extract_best_m3u8，已修复 TS 地址追加鉴权参数）
-        url_or_m3u8 = await get_play_url(content_id, target_cid)
-        if not url_or_m3u8:
-            return PlainTextResponse("播放地址获取失败", status_code=502)
+    url_or_m3u8 = await get_play_url(content_id, target_cid)
+    if not url_or_m3u8:
+        return PlainTextResponse("播放地址获取失败", status_code=502)
 
-        m3u8_content = url_or_m3u8
-        if url_or_m3u8.startswith("http"):
-            headers = _headers()
-            try:
-                r = await asyncio.to_thread(
-                    urllib.request.urlopen,
-                    urllib.request.Request(url_or_m3u8, headers=dict(headers)),
-                    timeout=10
-                )
-                m3u8_content = r.read().decode("utf-8")
-            except Exception as e:
-                return PlainTextResponse(f"获取 M3U8 失败: {e}", status_code=502)
+    if url_or_m3u8.startswith("http"):
+        # 302 重定向到 CDN 的 M3U8 URL
+        return RedirectResponse(url_or_m3u8, status_code=302)
 
-        # 从 M3U8 中提取 ts 分片 URL（已由 _extract_best_m3u8 追加鉴权参数）
-        ts_urls = []
-        for line in m3u8_content.split("\n"):
-            tl = line.strip()
-            if tl and not tl.startswith("#") and (".ts" in tl.lower()):
-                ts_urls.append(tl)
-
-        if not ts_urls:
-            return PlainTextResponse("未找到 TS 分片", status_code=502)
-
-        cache_set(key, json.dumps(ts_urls, ensure_ascii=False), 86400)
-
-    headers = _headers()
-    _cfg = load_config()
-    ac_cookie = _cfg.get("acfun_cookie", "")
-    if ac_cookie:
-        from urllib.parse import unquote
-        headers["Cookie"] = unquote(ac_cookie).strip().rstrip(";").strip()
-
-    async def _stream():
-        for ts_url in ts_urls:
-            try:
-                req = urllib.request.Request(ts_url, headers=dict(headers))
-                data = await asyncio.to_thread(
-                    urllib.request.urlopen, req, timeout=30
-                )
-                while True:
-                    chunk = data.read(65536)
-                    if not chunk:
-                        break
-                    yield chunk
-            except Exception:
-                continue
-
-    resp_headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-cache",
-        "X-Accel-Buffering": "no",
-    }
-    return StreamingResponse(
-        _stream(),
-        media_type="video/mp2t",
-        headers=resp_headers,
+    # 如果 get_play_url 返回的是 M3U8 内容（已由 _extract_best_m3u8 重写为绝对 CDN URL）
+    return Response(
+        content=url_or_m3u8,
+        media_type="application/vnd.apple.mpegurl",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
+        },
     )
 
 
