@@ -7,6 +7,18 @@ from .bilibili import series_videos, up_videos, video_info
 from .acfun import fetch_album_videos, fetch_user_videos, expand_videos_for_m3u, get_play_url_proxy
 
 
+def _build_base_url(request: Request) -> str:
+    """根据请求头构造正确的 base_url，优先使用 Host 头而非内部地址"""
+    proto = request.headers.get("X-Forwarded-Proto", "http")
+    forwarded = request.headers.get("X-Forwarded-Host")
+    if forwarded:
+        return f"{proto}://{forwarded}"
+    host = request.headers.get("host", "")
+    if host:
+        return f"{proto}://{host}"
+    return str(request.base_url).rstrip("/")
+
+
 def _get_part_label(page_num: int, total_parts: int) -> str:
     """根据分P总数返回人性化标题"""
     if total_parts == 2:
@@ -49,7 +61,7 @@ async def build_bili_m3u(
     live_only: bool = False,
 ) -> Response:
     """构建B站综合M3U"""
-    base_url = str(request.base_url).rstrip("/")
+    base_url = _build_base_url(request)
 
     # 过滤
     allowed = {}
@@ -274,12 +286,12 @@ async def build_sub_m3u(request: Request, cfg: dict, sub_name: str) -> Response:
     from .config import cache_get, cache_set
     from .bilibili import video_info, video_playurl
 
+    base_url = _build_base_url(request)
+
     # M3U 输出缓存 1 小时
-    m3u_key = f"m3u_out:{sub_name}"
+    m3u_key = f"m3u_out:{base_url}:{sub_name}"
     if cached := cache_get(m3u_key, ttl=3600):
         return Response(cached, media_type="application/x-mpegURL; charset=utf-8")
-
-    base_url = str(request.base_url).rstrip("/")
     lines = ["#EXTM3U", f"#PLAYLIST:{sub_name}\n"]
 
     # 找到订阅
