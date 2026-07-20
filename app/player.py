@@ -21,25 +21,28 @@ def _render(name, ctx=None, **kw):
     return _j2_env.get_template(name).render(**kw)
 
 
-async def bili_get_play_url(bvid: str, cid: int) -> Optional[str]:
-    """获取B站视频播放地址。优先 FLV（音视频一体），降级至 DASH video-only"""
+async def bili_get_play_url(bvid: str, cid: int) -> dict:
+    """获取B站视频播放地址。返回 {url, audio_url, is_dash}"""
     # 先检查有没有 1080P FLV（含音频，无需 DASH 合并）
     info_flv = await video_playurl(bvid, cid, qn=80)
     if info_flv and info_flv.get("flv") and 80 in info_flv.get("accept_quality", []):
-        return info_flv["flv"][0]["url"]
-    # 没有 1080P FLV，通过 fnval=4048 取 DASH 1080P（video-only）
+        return {"url": info_flv["flv"][0]["url"], "audio_url": None, "is_dash": False}
+    # 没有 1080P FLV，通过 fnval=4048 取 DASH 1080P
     info = await video_playurl(bvid, cid, qn=116, fnval=4048)
     if info:
         if info.get("flv"):
-            return info["flv"][0]["url"]
+            return {"url": info["flv"][0]["url"], "audio_url": None, "is_dash": False}
         if info.get("dash") and info["dash"].get("video"):
-            return info["dash"]["video"][0]["url"]
+            audio_url = None
+            if info["dash"].get("audio"):
+                audio_url = info["dash"]["audio"][0]["url"]
+            return {"url": info["dash"]["video"][0]["url"], "audio_url": audio_url, "is_dash": True}
     # 降级至 720P FLV
     for qn in [64, 32, 16]:
         info = await video_playurl(bvid, cid, qn=qn)
         if info and info.get("flv"):
-            return info["flv"][0]["url"]
-    return None
+            return {"url": info["flv"][0]["url"], "audio_url": None, "is_dash": False}
+    return {"url": None, "audio_url": None, "is_dash": False}
 
 
 def register(app):
@@ -205,10 +208,12 @@ def register(app):
                     found_cid = pages[0].get("cid", 0)
                 if not found_cid:
                     return PlainTextResponse("无法获取CID", status_code=404)
-            url = await bili_get_play_url(id, found_cid)
-            if not url:
+            result = await bili_get_play_url(id, found_cid)
+            if not result or not result.get("url"):
                 return PlainTextResponse("获取播放地址失败", status_code=404)
-            return await _proxy_stream_bili(url, request)
+            if result.get("is_dash") and result.get("audio_url"):
+                return await _proxy_stream_dash(result["url"], result["audio_url"], request)
+            return await _proxy_stream_bili(result["url"], request)
 
         # ─── 单视频播放 ─────────────────────────
         if id:
@@ -426,3 +431,55 @@ async def _proxy_stream_bili(url: str, request: Request):
 
     except Exception as e:
         return PlainTextResponse(f"代理错误: {e}", status_code=502)
+
+
+async def _proxy_stream_dash(video_url: str, audio_url: str, request: Request):
+    """流式代理 B站 DASH 视频+音频，用 ffmpeg 实时合并输出"""
+    import asyncio, subprocess as sp
+
+    range_header = request.headers.get("range", "")
+
+    cmd = [
+        "ffmpeg",
+        "-i", video_url,
+        "-i", audio_url,
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-f", "mp4",
+        "-movflags", "frag_keyframe+empty_moov+faststart",
+        "-fflags", "nobuffer",
+        "-flags", "low_delay",
+        "pipe:1",
+    ]
+    if range_header:
+        cmd.extend(["-ss", range_header.replace("bytes=", "").split("-")[0]])
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=sp.PIPE,
+            stderr=sp.PIPE,
+        )
+
+        fwd_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "no-cache",
+            "Content-Type": "video/mp4",
+        }
+
+        async def _stream():
+            try:
+                while True:
+                    chunk = await proc.stdout.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                if proc.returncode is None:
+                    proc.kill()
+                await proc.wait()
+
+        return StreamingResponse(_stream(), headers=fwd_headers)
+
+    except Exception as e:
+        return PlainTextResponse(f"DASH 合并错误: {e}", status_code=502)
