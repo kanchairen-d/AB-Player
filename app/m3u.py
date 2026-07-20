@@ -144,7 +144,7 @@ async def build_bili_m3u(
     for r in filter_rooms(cfg.get("bili_rooms", []) or cfg.get("rooms", [])):
         rid = r["room_id"] if isinstance(r, dict) else r
         rname = r.get("name", f"B站直播 #{rid}") if isinstance(r, dict) else f"B站直播 #{rid}"
-        lines.append(f"#EXTINF:-1 group-title=\"B站直播\",{_fmt_m3u_title(rname)}")
+        lines.append(f"#EXTINF:-1 group-title=\"B站直播\",{rname}")
         lines.append(f"{base_url}/bili?room={rid}")
 
     # A站合辑
@@ -163,7 +163,7 @@ async def build_bili_m3u(
                 cid = v.get("cid", "")
                 vtitle = v.get("title", "未知")
                 dur = int(v.get("duration", 0))
-                lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{_fmt_m3u_title(vtitle)}")
+                lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{vtitle}")
                 cid_qs = f"&cid={cid}" if cid else ""
                 lines.append(f"{base_url}/acfun?id={vid}&play=1{cid_qs}")
 
@@ -182,7 +182,7 @@ async def build_bili_m3u(
                 cid = v.get("cid", "")
                 vtitle = v.get("title", "未知")
                 dur = int(v.get("duration", 0))
-                lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{_fmt_m3u_title(vtitle)}")
+                lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{vtitle}")
                 cid_qs = f"&cid={cid}" if cid else ""
                 lines.append(f"{base_url}/acfun?id={vid}&play=1{cid_qs}")
 
@@ -191,7 +191,7 @@ async def build_bili_m3u(
             vid = v.get("id", "")
             name = v.get("name", "A站视频")
             if vid:
-                lines.append(f"#EXTINF:-1 group-title=\"A站单视频\",{_fmt_m3u_title(name)}")
+                lines.append(f"#EXTINF:-1 group-title=\"A站单视频\",{name}")
                 lines.append(f"{base_url}/acfun?id={vid}&play=1")
 
     return Response("\n".join(lines), media_type="application/x-mpegURL; charset=utf-8")
@@ -448,7 +448,7 @@ async def build_sub_m3u(request: Request, cfg: dict, sub_name: str) -> Response:
             rid = item_id.replace("room_", "")
             for r in cfg.get("bili_rooms", []):
                 if str(r.get("room_id", "")) == rid:
-                    lines.append(f'#EXTINF:-1 group-title="B站直播",{_fmt_m3u_title(r.get("name",f"B站直播 #{rid}"))}')
+                    lines.append(f'#EXTINF:-1 group-title="B站直播",{r.get("name",f"B站直播 #{rid}")}')
                     lines.append(f"{base_url}/bili?room={rid}")
                     return
 
@@ -465,7 +465,7 @@ async def build_sub_m3u(request: Request, cfg: dict, sub_name: str) -> Response:
                         vid = v.get("id", "")
                         cid = v.get("cid", "")
                         dur = int(v.get("duration", 0))
-                        lines.append(f'#EXTINF:{dur} group-title="{aname}",{_fmt_m3u_title(v.get("title","未知"))}')
+                        lines.append(f'#EXTINF:{dur} group-title="{aname}",{v.get("title","未知")}')
                         cid_qs = f"&cid={cid}" if cid else ""
                         lines.append(f"{base_url}/acfun?id={vid}&play=1{cid_qs}")
                         prefetch_acfun.append((vid, cid))
@@ -484,7 +484,7 @@ async def build_sub_m3u(request: Request, cfg: dict, sub_name: str) -> Response:
                         vid = v.get("id", "")
                         cid = v.get("cid", "")
                         dur = int(v.get("duration", 0))
-                        lines.append(f'#EXTINF:{dur} group-title="{uname}",{_fmt_m3u_title(v.get("title","未知"))}')
+                        lines.append(f'#EXTINF:{dur} group-title="{uname}",{v.get("title","未知")}')
                         cid_qs = f"&cid={cid}" if cid else ""
                         lines.append(f"{base_url}/acfun?id={vid}&play=1{cid_qs}")
                         prefetch_acfun.append((vid, cid))
@@ -495,7 +495,7 @@ async def build_sub_m3u(request: Request, cfg: dict, sub_name: str) -> Response:
             vid = item_id.replace("acfun_video_", "")
             for v in cfg.get("acfun_videos", []):
                 if str(v.get("id", "")) == vid:
-                    lines.append(f'#EXTINF:-1 group-title="A站单视频",{_fmt_m3u_title(v.get("name","A站视频"))}')
+                    lines.append(f'#EXTINF:-1 group-title="A站单视频",{v.get("name","A站视频")}')
                     lines.append(f"{base_url}/acfun?id={vid}&play=1")
                     prefetch_acfun.append((vid, ""))
                     return

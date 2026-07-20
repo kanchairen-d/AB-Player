@@ -768,7 +768,7 @@ async def _handle_acfun_m3u(request, cfg, id, album, up, sub):
             cid = v.get("cid", "")
             vtitle = v.get("title", "未知")
             dur = int(v.get("duration", 0))
-            lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{_fmt_m3u_title(vtitle)}")
+            lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{vtitle}")
             cid_qs = f"&cid={cid}" if cid else ""
             lines.append(f"{base_url}/acfun?id={vid}&play=1{cid_qs}")
 
@@ -787,7 +787,7 @@ async def _handle_acfun_m3u(request, cfg, id, album, up, sub):
             cid = v.get("cid", "")
             vtitle = v.get("title", "未知")
             dur = int(v.get("duration", 0))
-            lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{_fmt_m3u_title(vtitle)}")
+            lines.append(f"#EXTINF:{dur} group-title=\"{name}\",{vtitle}")
             cid_qs = f"&cid={cid}" if cid else ""
             lines.append(f"{base_url}/acfun?id={vid}&play=1{cid_qs}")
 
@@ -796,7 +796,7 @@ async def _handle_acfun_m3u(request, cfg, id, album, up, sub):
         vid = v.get("id", "")
         name = v.get("name", "A站视频")
         if vid:
-            lines.append(f"#EXTINF:-1 group-title=\"A站单视频\",{_fmt_m3u_title(name)}")
+            lines.append(f"#EXTINF:-1 group-title=\"A站单视频\",{name}")
             lines.append(f"{base_url}/acfun?id={vid}&play=1")
 
     return Response("\n".join(lines), media_type="application/x-mpegURL; charset=utf-8")
