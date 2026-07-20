@@ -28,8 +28,8 @@ async def bili_get_play_url(bvid: str, cid: int) -> Optional[str]:
         info = await video_playurl(bvid, cid, qn=qn)
         if info and info.get("flv"):
             return info["flv"][0]["url"]
-    # 最高画质（可能 DASH，视频/音频分离，仅作后备）
-    info = await video_playurl(bvid, cid, qn=116)
+    # 通过 fnval=4048 取 DASH（含 1080P+，需要播放器合并音视频）
+    info = await video_playurl(bvid, cid, qn=116, fnval=4048)
     if info:
         if info.get("flv"):
             return info["flv"][0]["url"]

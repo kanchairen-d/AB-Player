@@ -123,8 +123,8 @@ async def video_info(bvid: str) -> Optional[dict]:
     cache_set(key, json.dumps(result, ensure_ascii=False), 1800)
     return result
 
-async def video_playurl(bvid: str, cid: int = 0, qn: int = 116) -> Optional[dict]:
-    key = f"pu:{bvid}:{cid}:{qn}"
+async def video_playurl(bvid: str, cid: int = 0, qn: int = 116, fnval: int = 0) -> Optional[dict]:
+    key = f"pu:{bvid}:{cid}:{qn}:{fnval}"
     if cached := cache_get(key):
         return json.loads(cached)
 
@@ -134,7 +134,10 @@ async def video_playurl(bvid: str, cid: int = 0, qn: int = 116) -> Optional[dict
             return None
         cid = int(info.get("cid", 0))
 
-    play = await _req("/x/player/playurl", {"bvid": bvid, "cid": cid, "qn": qn})
+    params = {"bvid": bvid, "cid": cid, "qn": qn}
+    if fnval:
+        params["fnval"] = fnval
+    play = await _req("/x/player/playurl", params)
     if not play:
         return None
 
