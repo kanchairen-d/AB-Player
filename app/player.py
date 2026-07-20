@@ -22,9 +22,9 @@ def _render(name, ctx=None, **kw):
 
 
 async def bili_get_play_url(bvid: str, cid: int) -> dict:
-    """获取B站视频播放地址。优先 1080P FLV，降级至 720P FLV"""
-    # qn=80=1080P, qn=64=720P, 只找 FLV（含音频），DASH 音视频分离放弃
-    for qn in [80, 64]:
+    """获取B站视频播放地址。优先 FLV（音视频一体），从高到低依次降级，DASH 分离的不要"""
+    # qn=80=1080P, 64=720P, 32=480P, 16=360P
+    for qn in [80, 64, 32, 16]:
         info = await video_playurl(bvid, cid, qn=qn)
         if info and info.get("flv"):
             return {"url": info["flv"][0]["url"], "audio_url": None, "is_dash": False}
