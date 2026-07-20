@@ -1918,11 +1918,29 @@ function refreshNow() {
     .then(function(r){ return r.json(); })
     .then(function(j) {
       if (j.ok) {
-        showToast('✅ 刷新任务已完成');
+        showToast('🔄 正在刷新...');
+        // 轮询等待刷新完成
+        var pollTimer = setInterval(function() {
+          fetch('/admin?action=load_schedule', { method: 'POST' })
+            .then(function(r){ return r.json(); })
+            .then(function(s) {
+              var st = (s.last_status || '').trim();
+              if (st && st !== '运行中...') {
+                clearInterval(pollTimer);
+                // 更新 UI 状态
+                loadSchedule();
+                // 根据结果显示 toast
+                if (st.indexOf('⚠️') !== -1 || st.indexOf('错误') !== -1) {
+                  showToast('⚠️ 刷新完成，有错误');
+                } else {
+                  showToast('✅ 刷新完成');
+                }
+              }
+            });
+        }, 2000);
       } else {
         showToast('❌ ' + (j.error || '启动失败'));
       }
-      setTimeout(function() { loadSchedule(); }, 5000);
     })
     .catch(function(){
       showToast('❌ 网络错误');

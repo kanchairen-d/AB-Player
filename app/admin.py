@@ -738,7 +738,7 @@ def register(app):
             from .scheduler import load_schedule, _do_refresh
             def _run():
                 try:
-                    _do_refresh(load_schedule())
+                    _do_refresh(load_schedule(), source="手动")
                 except Exception:
                     pass
             threading.Thread(target=_run, daemon=True, name="refresh-now").start()

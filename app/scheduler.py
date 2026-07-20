@@ -108,7 +108,25 @@ def _cleanup_expired_cache():
         print(f"[Scheduler] 清理了 {count} 个过期缓存文件")
 
 
-def _do_refresh(cfg: dict):
+def _count_cached_videos(cache_key: str) -> int:
+    """统计缓存中已存在的视频数量"""
+    import json
+    from .config import cache_get
+    cached = cache_get(cache_key)
+    if not cached:
+        return 0
+    try:
+        data = json.loads(cached)
+        if isinstance(data, list):
+            return len(data)
+        if isinstance(data, dict):
+            return len(data.get("videos", []))
+        return 0
+    except Exception:
+        return 0
+
+
+def _do_refresh(cfg: dict, source: str = "自动"):
     """执行刷新所有合集、UP主、单视频、直播（B站 + A站）"""
     if not _refresh_lock.acquire(blocking=False):
         print("[Scheduler] 刷新已在运行中，跳过")
@@ -126,7 +144,7 @@ def _do_refresh(cfg: dict):
         asyncio.set_event_loop(loop)
         try:
             results = loop.run_until_complete(_do_refresh_async())
-            errors, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos = results
+            errors, changes, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos = results
         finally:
             # 关闭全局 httpx 客户端连接，再重建，避免下次 Event loop is closed
             import app.config as config_module
@@ -142,26 +160,10 @@ def _do_refresh(cfg: dict):
             )
 
         # ═══ 状态更新 ═══
-        parts = []
-        if total_albums:
-            parts.append(f"A站合辑: {total_albums}")
-        if total_acfun_ups:
-            parts.append(f"A站UP主: {total_acfun_ups}")
-        if total_acfun_videos:
-            parts.append(f"A站单视频: {total_acfun_videos}")
-        if total_series:
-            parts.append(f"B站合集: {total_series}")
-        if total_ups:
-            parts.append(f"B站UP主: {total_ups}")
-        if total_videos:
-            parts.append(f"B站单视频: {total_videos}")
-        if total_rooms:
-            parts.append(f"B站直播: {total_rooms}")
+        if not changes:
+            changes.append("无新内容")
 
-        if not parts:
-            parts.append("无内容")
-
-        status = f"✅ 刷新完成: {'; '.join(parts)}"
+        status = f"✅ 刷新完成: {'; '.join(changes)}"
         if errors:
             status += f" ⚠️ {len(errors)}个错误"
             status += "\n" + "\n".join(errors[:5])
@@ -173,7 +175,7 @@ def _do_refresh(cfg: dict):
 
         # ═══ 推送通知 ═══
         try:
-            _send_notification("AB-Player 自动刷新", parts, total_series, total_ups, total_videos, total_rooms,
+            _send_notification(f"AB-Player {source}刷新", changes, total_series, total_ups, total_videos, total_rooms,
                                total_albums, total_acfun_ups, total_acfun_videos, errors)
         except Exception as e:
             print(f"[Scheduler] 通知发送失败: {e}")
@@ -194,6 +196,7 @@ async def _do_refresh_async():
     acfun_video_list = app_cfg.get("acfun_videos", [])
 
     errors = []
+    changes = []
     total_series = 0
     total_ups = 0
     total_albums = 0
@@ -207,12 +210,19 @@ async def _do_refresh_async():
         sid = s.get("series_id", "")
         s_mid = s.get("mid", "")
         s_fmt = s.get("fmt", "channel")
+        s_name = s.get("name", f"合集{sid}")
         if not sid:
             continue
         try:
             from .bilibili import series_videos
+            cache_key = f"sv_full:{sid}:{s_mid}:{s_fmt}"
+            before = _count_cached_videos(cache_key)
             result = await series_videos(int(sid), mid=s_mid, pn=1, ps=100, fmt=s_fmt, force=True)
+            after = _count_cached_videos(cache_key)
+            diff = after - before
             if result:
+                if diff > 0:
+                    changes.append(f"B站-合集-{s_name}: +{diff}")
                 total_series += 1
             else:
                 errors.append(f"B站合集 {sid}: 获取失败")
@@ -222,12 +232,19 @@ async def _do_refresh_async():
     # ═══ B站UP主 ═══
     for u in up_list:
         uid = u.get("mid", "")
+        u_name = u.get("name", f"UP{uid}")
         if not uid:
             continue
         try:
             from .bilibili import up_videos
+            cache_key = f"uv:{uid}:1:50"
+            before = _count_cached_videos(cache_key)
             result = await up_videos(int(uid), pn=1, ps=50, force=True)
+            after = _count_cached_videos(cache_key)
+            diff = after - before
             if result:
+                if diff > 0:
+                    changes.append(f"B站-UP主-{u_name}: +{diff}")
                 total_ups += 1
             else:
                 errors.append(f"B站UP主 {uid}: 获取失败")
@@ -277,12 +294,19 @@ async def _do_refresh_async():
     # ═══ A站合辑 ═══
     for a in album_list:
         aid = a.get("id", "")
+        a_name = a.get("name", f"合辑{aid}")
         if not aid:
             continue
         try:
             from .acfun import fetch_album_videos
+            cache_key = f"aav:{aid}"
+            before = _count_cached_videos(cache_key)
             result = await fetch_album_videos(aid, force=True)
+            after = _count_cached_videos(cache_key)
+            diff = after - before
             if result:
+                if diff > 0:
+                    changes.append(f"A站-合辑-{a_name}: +{diff}")
                 total_albums += 1
             else:
                 errors.append(f"A站合辑 {aid}: 获取失败")
@@ -292,12 +316,19 @@ async def _do_refresh_async():
     # ═══ A站UP主 ═══
     for u in acfun_up_list:
         mid = u.get("mid", "")
+        u_name = u.get("name", f"UP{mid}")
         if not mid:
             continue
         try:
             from .acfun import fetch_user_videos
+            cache_key = f"auv:{mid}"
+            before = _count_cached_videos(cache_key)
             result = await fetch_user_videos(mid, force=True)
+            after = _count_cached_videos(cache_key)
+            diff = after - before
             if result:
+                if diff > 0:
+                    changes.append(f"A站-UP主-{u_name}: +{diff}")
                 total_acfun_ups += 1
             else:
                 errors.append(f"A站UP主 {mid}: 获取失败")
@@ -323,9 +354,9 @@ async def _do_refresh_async():
         except Exception as e:
             errors.append(f"A站单视频 {vid}: {e}")
 
-    return errors, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos
+    return errors, changes, total_series, total_ups, total_videos, total_rooms, total_albums, total_acfun_ups, total_acfun_videos
 
-def _send_notification(title, parts, total_series, total_ups, total_videos, total_rooms,
+def _send_notification(title, changes, total_series, total_ups, total_videos, total_rooms,
                        total_albums, total_acfun_ups, total_acfun_videos, errors):
     """推送通知到 WxPusher / PushPlus"""
     from .config import load_config as load_app_config
@@ -337,23 +368,15 @@ def _send_notification(title, parts, total_series, total_ups, total_videos, tota
 
     # 构建通知内容
     content_lines = []
-    if parts:
-        content_lines.append("🎬 A站相关：")
-        if total_albums:
-            content_lines.append(f"  • 合辑: {total_albums} 个")
-        if total_acfun_ups:
-            content_lines.append(f"  • UP主: {total_acfun_ups} 个")
-        if total_acfun_videos:
-            content_lines.append(f"  • 单视频: {total_acfun_videos} 个")
-        content_lines.append("📺 B站相关：")
-        if total_series:
-            content_lines.append(f"  • 合集: {total_series} 个")
-        if total_ups:
-            content_lines.append(f"  • UP主: {total_ups} 个")
-        if total_videos:
-            content_lines.append(f"  • 单视频: {total_videos} 个")
-        if total_rooms:
-            content_lines.append(f"  • 直播: {total_rooms} 个")
+    if changes:
+        has_new = any("+" in c for c in changes)
+        if has_new:
+            content_lines.append("📢 新增内容：")
+            for c in changes:
+                if "+" in c:
+                    content_lines.append(f"  • {c}")
+        else:
+            content_lines.append("📭 无新内容更新")
     else:
         content_lines.append("📭 无内容更新")
 
